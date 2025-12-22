@@ -1,3 +1,4 @@
+import random
 from services.prompts import SUB_AGENT_PROMPT, ORCHESTRATOR_PROMPT
 from langchain_openai import ChatOpenAI
 import asyncio
@@ -44,6 +45,7 @@ class Orchestrator:
         self.messages = []
         self.llm = ChatOpenAI(model="gpt-5-mini")
         self.agents = agents
+        self.conversation_stacks = {agent.name: [] for agent in agents}
 
     async def inference(self, message: str, role: str = "user"):
         self.messages.append({"role": role, "content": message})
@@ -82,6 +84,42 @@ class Orchestrator:
         for agent_name, response in results:
             notification_response[agent_name] = response
         return notification_response
+    
+    def update_conversation_stack(self, agent_name: str, message: str):
+        if agent_name in self.conversation_stacks:
+            self.conversation_stacks[agent_name].append(message)
+        else:
+            raise ValueError(f"Agent {agent_name} not found in conversation stacks.")
+    
+    def clear_conversation_stack(self, agent_name: str):
+        if agent_name in self.conversation_stacks:
+            self.conversation_stacks[agent_name] = []
+        else:
+            raise ValueError(f"Agent {agent_name} not found in conversation stacks.")
+
+    def update_conversation_stacks(self, previous_take: str, previous_take_author: str):
+        self.clear_conversation_stack(previous_take_author)
+        for agent in self.agents:
+            if agent.name != previous_take_author:
+                self.update_conversation_stack(agent.name, previous_take)
+    
+    def update_conversation_stacks_bulk(self, agent_takes: dict):
+        for agent_name, take in agent_takes.items():
+            for agent in self.agents:
+                if agent.name != agent_name:
+                    self.update_conversation_stack(agent.name, take)
+    
+    async def decide_and_get_take(self, prev_author_index: int):
+        agent_index = random.randrange(start=0, stop=len(self.agents))
+        if agent_index == prev_author_index:
+            agent_index = (agent_index + 1) % len(self.agents)
+        agent = self.agents[agent_index]
+        print(f"Orchestrator selected agent: {agent.name} to provide the next take.")
+        response = await agent.inference(
+            message=f"Here is the conversation stack for you: {self.conversation_stacks[agent.name]}, please provide your next take or if you are done, respond with 'IM DONE'."
+        )
+        self.update_conversation_stacks(previous_take=response, previous_take_author=agent.name)
+        return agent_index, response
 
 
 async def main():
@@ -93,32 +131,41 @@ async def main():
     print("Initialized Agent 2")
     orchestrator = Orchestrator(agents=[agent1, agent2])
     print("Initialized Orchestrator")
-    user_input = "wassup guys, how are you doing today?"
+    user_input = "Come up with a startup idea and once everything is discussed and no more iteration is required start responding with 'IM DONE'"
     orchestrator.initialize_orchestrator(user_input=user_input)
     print("Orchestrator prompt initialized")
 
     res1, res2 = await asyncio.gather(
         agent1.initialize_agent(user_input=user_input),
         agent2.initialize_agent(user_input=user_input)
-    )
-    print("Agent 1 initial take submitted")
-    print("Agent 2 initial take submitted")
+    )    
 
-    agent_takes = {
+    print(res1)
+    print(res2)
+
+    initial_takes = {
         agent1.name: res1,
         agent2.name: res2
     }
 
-    async def run_discussion_loop(max_iterations: int = 10):
+    orchestrator.update_conversation_stacks_bulk(initial_takes)
+    
+    async def run_discussion_loop(max_iterations: int = 100):
+        prev_author_index = -1
         for iteration in range(max_iterations):
+
             print(f"\n--- Iteration {iteration + 1} ---")
-            print("Processing agent takes through orchestrator...")
-            orchestrator_response = await orchestrator.process_agent_takes(
-                agent_takes=agent_takes)
+            agent_index, take = await orchestrator.decide_and_get_take(prev_author_index)
+            prev_author_index = agent_index
+            print(f"Agent {orchestrator.agents[agent_index].name} provided take: {take}")
+            # print(f"Agent {agent_name} provided take: {take}")
+
+            # orchestrator_response = await orchestrator.process_agent_takes(
+            #     agent_takes=agent_takes)
             # print(orchestrator_response)
 
-            new_takes = await orchestrator.send_notifications(orchestrator_response)
-            agent_takes.update(new_takes)
+            # new_takes = await orchestrator.send_notifications(orchestrator_response)
+            # agent_takes.update(new_takes)
 
     await run_discussion_loop()
 

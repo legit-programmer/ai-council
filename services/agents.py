@@ -13,7 +13,7 @@ class Agent:
         self.role = role
         self.traits = traits if traits is not None else []
         self.messages = []
-        self.llm = ChatOpenAI(model="gpt-5-mini")
+        self.llm = ChatOpenAI(model="gpt-5.1", reasoning=None)
 
     async def inference(self, message: str, role: str = "user"):
         self.messages.append({"role": role, "content": message})
@@ -87,18 +87,20 @@ class Orchestrator:
         for agent_name, response in results:
             notification_response[agent_name] = response
         return notification_response
-    
+
     def update_conversation_stack(self, agent_name: str, message: str):
         if agent_name in self.conversation_stacks:
             self.conversation_stacks[agent_name].append(message)
         else:
-            raise ValueError(f"Agent {agent_name} not found in conversation stacks.")
-    
+            raise ValueError(
+                f"Agent {agent_name} not found in conversation stacks.")
+
     def clear_conversation_stack(self, agent_name: str):
         if agent_name in self.conversation_stacks:
             self.conversation_stacks[agent_name] = []
         else:
-            raise ValueError(f"Agent {agent_name} not found in conversation stacks.")
+            raise ValueError(
+                f"Agent {agent_name} not found in conversation stacks.")
 
     def update_conversation_stacks(self, previous_take: str, previous_take_author: str):
         if previous_take_author != self.user_alias:
@@ -106,44 +108,52 @@ class Orchestrator:
         for agent in self.agents:
             if agent.name != previous_take_author:
                 self.update_conversation_stack(agent.name, previous_take)
-    
+
     def update_conversation_stacks_bulk(self, agent_takes: dict):
         for agent_name, take in agent_takes.items():
             for agent in self.agents:
                 if agent.name != agent_name:
                     self.update_conversation_stack(agent.name, take)
-    
+
     async def decide_and_get_take(self, prev_author_index: int):
         agent_index = random.randrange(start=0, stop=len(self.agents))
         if agent_index == prev_author_index:
             agent_index = (agent_index + 1) % len(self.agents)
         agent = self.agents[agent_index]
         response = await agent.inference(
-            message=f"Here is the conversation stack for you: {self.conversation_stacks[agent.name]}, please provide your next take or if you are done, respond with 'IM DONE'."
+            message=f"Here is the conversation stack for you: {self.conversation_stacks[agent.name]}, please provide your next take."
         )
-        self.update_conversation_stacks(previous_take=response, previous_take_author=agent.name)
+        self.update_conversation_stacks(
+            previous_take=response, previous_take_author=agent.name)
         return agent_index, response
 
     def check_user_interrupt(self):
         return keyboard.is_pressed('i')
 
+
 async def main():
-    agent1 = Agent(name="Alex", role="Your thoughtful friend",
-                   traits=["Empathetic", "Good listener", "Laid-back"])
+    agent1 = Agent(name="Alex", role="Technical Architect",
+                   traits=["Analytical", "Detail-oriented", "Problem-solver"])
     print("Initialized Agent 1")
-    agent2 = Agent(name="Jordan", role="Your adventurous buddy",
-                   traits=["Spontaneous", "Funny", "Open-minded"])
+    agent2 = Agent(name="Jordan", role="Product Manager",
+                   traits=["User-focused", "Strategic", "Pragmatic"])
     print("Initialized Agent 2")
-    orchestrator = Orchestrator(agents=[agent1, agent2])
+    agent3 = Agent(name="Taylor", role="Business Strategist",
+                   traits=["Market-aware", "Data-driven", "Decisive"])
+    print("Initialized Agent 3")
+    agent4 = Agent(name="Sam", role="Creative Director",
+                   traits=["Innovative", "Visionary", "Brand-focused"])
+    print("Initialized Agent 4")
+    orchestrator = Orchestrator(agents=[agent1, agent2, agent3, agent4])
     print("Initialized Orchestrator")
-    user_input = "Come up with a sofyware startup idea and once everything is discussed and no more iteration is required start responding with 'IM DONE'"
+    user_input = "Come up with a sofyware startup idea and once everything is discussed "
     orchestrator.initialize_orchestrator(user_input=user_input)
     print("Orchestrator prompt initialized")
 
     res1, res2 = await asyncio.gather(
         agent1.initialize_agent(user_input=user_input),
         agent2.initialize_agent(user_input=user_input)
-    )    
+    )
 
     print(res1)
     print(res2)
@@ -154,7 +164,7 @@ async def main():
     }
 
     orchestrator.update_conversation_stacks_bulk(initial_takes)
-    
+
     async def run_discussion_loop(max_iterations: int = 100):
         prev_author_index = -1
         for iteration in range(max_iterations):
@@ -162,13 +172,14 @@ async def main():
             print(f"\n--- Iteration {iteration + 1} ---")
             agent_index, take = await orchestrator.decide_and_get_take(prev_author_index)
             prev_author_index = agent_index
-            print(f"Agent {orchestrator.agents[agent_index].name} provided take: {take}")
+            print(
+                f"Agent {orchestrator.agents[agent_index].name} provided take: {take}")
 
-            
             if orchestrator.check_user_interrupt():
                 orchestrator.is_user_speaking = True
                 user_take = input("User, please provide your take: ")
-                orchestrator.update_conversation_stacks(previous_take=user_take, previous_take_author=orchestrator.user_alias)
+                orchestrator.update_conversation_stacks(
+                    previous_take=user_take, previous_take_author=orchestrator.user_alias)
                 orchestrator.is_user_speaking = False
 
     await run_discussion_loop()

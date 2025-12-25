@@ -3,6 +3,7 @@ from services.prompts import SUB_AGENT_PROMPT, ORCHESTRATOR_PROMPT
 from langchain_openai import ChatOpenAI
 import asyncio
 from dotenv import load_dotenv
+import keyboard
 load_dotenv()
 
 
@@ -46,6 +47,8 @@ class Orchestrator:
         self.llm = ChatOpenAI(model="gpt-5-mini")
         self.agents = agents
         self.conversation_stacks = {agent.name: [] for agent in agents}
+        self.is_user_speaking = False
+        self.user_alias = "MainUser"
 
     async def inference(self, message: str, role: str = "user"):
         self.messages.append({"role": role, "content": message})
@@ -98,7 +101,8 @@ class Orchestrator:
             raise ValueError(f"Agent {agent_name} not found in conversation stacks.")
 
     def update_conversation_stacks(self, previous_take: str, previous_take_author: str):
-        self.clear_conversation_stack(previous_take_author)
+        if previous_take_author != self.user_alias:
+            self.clear_conversation_stack(previous_take_author)
         for agent in self.agents:
             if agent.name != previous_take_author:
                 self.update_conversation_stack(agent.name, previous_take)
@@ -114,13 +118,14 @@ class Orchestrator:
         if agent_index == prev_author_index:
             agent_index = (agent_index + 1) % len(self.agents)
         agent = self.agents[agent_index]
-        print(f"Orchestrator selected agent: {agent.name} to provide the next take.")
         response = await agent.inference(
             message=f"Here is the conversation stack for you: {self.conversation_stacks[agent.name]}, please provide your next take or if you are done, respond with 'IM DONE'."
         )
         self.update_conversation_stacks(previous_take=response, previous_take_author=agent.name)
         return agent_index, response
 
+    def check_user_interrupt(self):
+        return keyboard.is_pressed('i')
 
 async def main():
     agent1 = Agent(name="Alex", role="Your thoughtful friend",
@@ -131,7 +136,7 @@ async def main():
     print("Initialized Agent 2")
     orchestrator = Orchestrator(agents=[agent1, agent2])
     print("Initialized Orchestrator")
-    user_input = "Come up with a startup idea and once everything is discussed and no more iteration is required start responding with 'IM DONE'"
+    user_input = "Come up with a sofyware startup idea and once everything is discussed and no more iteration is required start responding with 'IM DONE'"
     orchestrator.initialize_orchestrator(user_input=user_input)
     print("Orchestrator prompt initialized")
 
@@ -158,14 +163,13 @@ async def main():
             agent_index, take = await orchestrator.decide_and_get_take(prev_author_index)
             prev_author_index = agent_index
             print(f"Agent {orchestrator.agents[agent_index].name} provided take: {take}")
-            # print(f"Agent {agent_name} provided take: {take}")
 
-            # orchestrator_response = await orchestrator.process_agent_takes(
-            #     agent_takes=agent_takes)
-            # print(orchestrator_response)
-
-            # new_takes = await orchestrator.send_notifications(orchestrator_response)
-            # agent_takes.update(new_takes)
+            
+            if orchestrator.check_user_interrupt():
+                orchestrator.is_user_speaking = True
+                user_take = input("User, please provide your take: ")
+                orchestrator.update_conversation_stacks(previous_take=user_take, previous_take_author=orchestrator.user_alias)
+                orchestrator.is_user_speaking = False
 
     await run_discussion_loop()
 

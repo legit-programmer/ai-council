@@ -3,16 +3,20 @@ from services.prompts import SUB_AGENT_PROMPT, ORCHESTRATOR_PROMPT
 from langchain_openai import ChatOpenAI
 import asyncio
 from dotenv import load_dotenv
+from elevenlabs.play import play 
+from services.elvnlabs import synthesize_and_play_speech as syn
+
 import keyboard
 load_dotenv()
 
 
 class Agent:
-    def __init__(self, name: str, role: str, traits: list = None):
+    def __init__(self, name: str, role: str, traits: list = None, voice_id: str = None):
         self.name = name
         self.role = role
         self.traits = traits if traits is not None else []
         self.messages = []
+        self.voice_id = voice_id
         self.llm = ChatOpenAI(model="gpt-5.1", reasoning=None)
 
     async def inference(self, message: str, role: str = "user"):
@@ -39,6 +43,8 @@ class Agent:
         response = await self.inference(
             message=f'Message from the orchestrator: {notification}')
         return response
+    
+    
 
 
 class Orchestrator:
@@ -133,20 +139,20 @@ class Orchestrator:
 
 async def main():
     agent1 = Agent(name="Alex", role="Technical Architect",
-                   traits=["Analytical", "Detail-oriented", "Problem-solver"])
+                   traits=["Empathetic", "Thoughtful", "Supportive"], voice_id="6WjhCXzqp2hnSqFtrG8P")
     print("Initialized Agent 1")
     agent2 = Agent(name="Jordan", role="Product Manager",
-                   traits=["User-focused", "Strategic", "Pragmatic"])
+                   traits=["Compassionate", "Understanding", "Encouraging"], voice_id="rAsfH6d68tmh0XRGXp4D")
     print("Initialized Agent 2")
     agent3 = Agent(name="Taylor", role="Business Strategist",
-                   traits=["Market-aware", "Data-driven", "Decisive"])
+                   traits=["Warm", "Patient", "Caring"], voice_id="xNtG3W2oqJs0cJZuTyBc")
     print("Initialized Agent 3")
-    agent4 = Agent(name="Sam", role="Creative Director",
-                   traits=["Innovative", "Visionary", "Brand-focused"])
+    # agent4 = Agent(name="Sam", role="Creative Director",
+    #                traits=["Innovative", "Visionary", "Brand-focused"])
     print("Initialized Agent 4")
-    orchestrator = Orchestrator(agents=[agent1, agent2, agent3, agent4])
+    orchestrator = Orchestrator(agents=[agent1, agent2, agent3])
     print("Initialized Orchestrator")
-    user_input = "Come up with a sofyware startup idea and once everything is discussed "
+    user_input = "i feel down about my work and life balance, what should I do?"
     orchestrator.initialize_orchestrator(user_input=user_input)
     print("Orchestrator prompt initialized")
 
@@ -170,8 +176,11 @@ async def main():
         for iteration in range(max_iterations):
 
             print(f"\n--- Iteration {iteration + 1} ---")
+            # put a check over here to see if user interrupted
             agent_index, take = await orchestrator.decide_and_get_take(prev_author_index)
             prev_author_index = agent_index
+            
+            syn(text=take, voice_id=orchestrator.agents[agent_index].voice_id)
             print(
                 f"Agent {orchestrator.agents[agent_index].name} provided take: {take}")
 

@@ -17,7 +17,7 @@ class Agent:
         self.traits = traits if traits is not None else []
         self.messages = []
         self.voice_id = voice_id
-        self.llm = ChatOpenAI(model="gpt-5.1", reasoning=None)
+        self.llm = ChatOpenAI(model="gpt-5.2", reasoning=None)
 
     async def inference(self, message: str, role: str = "user"):
         self.messages.append({"role": role, "content": message})
@@ -138,13 +138,13 @@ class Orchestrator:
 
 
 async def main():
-    agent1 = Agent(name="Alex", role="Technical Architect",
+    agent1 = Agent(name="Alex", role="supportive Friend",
                    traits=["Empathetic", "Thoughtful", "Supportive"], voice_id="6WjhCXzqp2hnSqFtrG8P")
     print("Initialized Agent 1")
-    agent2 = Agent(name="Jordan", role="Product Manager",
+    agent2 = Agent(name="Jordan", role="Life Coach",
                    traits=["Compassionate", "Understanding", "Encouraging"], voice_id="rAsfH6d68tmh0XRGXp4D")
     print("Initialized Agent 2")
-    agent3 = Agent(name="Taylor", role="Business Strategist",
+    agent3 = Agent(name="Taylor", role="Therapist",
                    traits=["Warm", "Patient", "Caring"], voice_id="xNtG3W2oqJs0cJZuTyBc")
     print("Initialized Agent 3")
     # agent4 = Agent(name="Sam", role="Creative Director",
@@ -152,7 +152,7 @@ async def main():
     print("Initialized Agent 4")
     orchestrator = Orchestrator(agents=[agent1, agent2, agent3])
     print("Initialized Orchestrator")
-    user_input = "i feel down about my work and life balance, what should I do?"
+    user_input = "hi i am feeling low today can you help me out?"
     orchestrator.initialize_orchestrator(user_input=user_input)
     print("Orchestrator prompt initialized")
 
@@ -180,9 +180,9 @@ async def main():
             agent_index, take = await orchestrator.decide_and_get_take(prev_author_index)
             prev_author_index = agent_index
             
-            syn(text=take, voice_id=orchestrator.agents[agent_index].voice_id)
             print(
                 f"Agent {orchestrator.agents[agent_index].name} provided take: {take}")
+            syn(text=take, voice_id=orchestrator.agents[agent_index].voice_id)
 
             if orchestrator.check_user_interrupt():
                 orchestrator.is_user_speaking = True

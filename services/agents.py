@@ -147,30 +147,13 @@ async def main():
     agent3 = Agent(name="Taylor", role="Therapist",
                    traits=["Warm", "Patient", "Caring"], voice_id="xNtG3W2oqJs0cJZuTyBc")
     print("Initialized Agent 3")
-    # agent4 = Agent(name="Sam", role="Creative Director",
-    #                traits=["Innovative", "Visionary", "Brand-focused"])
     print("Initialized Agent 4")
     orchestrator = Orchestrator(agents=[agent1, agent2, agent3])
     print("Initialized Orchestrator")
     user_input = "hi i am feeling low today can you help me out?"
     orchestrator.initialize_orchestrator(user_input=user_input)
     print("Orchestrator prompt initialized")
-
-    res1, res2 = await asyncio.gather(
-        agent1.initialize_agent(user_input=user_input),
-        agent2.initialize_agent(user_input=user_input)
-    )
-
-    print(res1)
-    print(res2)
-
-    initial_takes = {
-        agent1.name: res1,
-        agent2.name: res2
-    }
-
-    orchestrator.update_conversation_stacks_bulk(initial_takes)
-
+    orchestrator.update_conversation_stacks(previous_take=user_input, previous_take_author=orchestrator.user_alias)
     async def run_discussion_loop(max_iterations: int = 100):
         prev_author_index = -1
         for iteration in range(max_iterations):

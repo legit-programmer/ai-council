@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "elevenlabs>=2.27.0",
+    "fastapi[standard]>=0.128.0",
     "keyboard>=0.13.5",
     "langchain>=1.2.0",
     "langchain-community>=0.4.1",

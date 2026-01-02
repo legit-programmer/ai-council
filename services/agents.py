@@ -18,7 +18,6 @@ class Agent:
         self.messages = []
         self.voice_id = voice_id
         self.llm = ChatOpenAI(model="gpt-5.2", reasoning=None)
-        self.previous_author_index = -1
 
     async def inference(self, message: str, role: str = "user"):
         self.messages.append({"role": role, "content": message})
@@ -56,6 +55,7 @@ class Orchestrator:
         self.conversation_stacks = {agent.name: [] for agent in agents}
         self.is_user_speaking = False
         self.user_alias = "MainUser"
+        self.previous_author_index = -1
 
     async def inference(self, message: str, role: str = "user"):
         self.messages.append({"role": role, "content": message})
@@ -130,8 +130,6 @@ class Orchestrator:
         response = await agent.inference(
             message=f"Here is the conversation stack for you: {self.conversation_stacks[agent.name]}, please provide your next take."
         )
-        self.update_conversation_stacks(
-            previous_take=response, previous_take_author=agent.name)
         return agent_index, response
 
     def check_user_interrupt(self):
@@ -151,9 +149,7 @@ async def main():
     print("Initialized Agent 4")
     orchestrator = Orchestrator(agents=[agent1, agent2, agent3])
     print("Initialized Orchestrator")
-    user_input = "hi i am feeling low today can you help me out?"
-    orchestrator.initialize_orchestrator(user_input=user_input)
-    print("Orchestrator prompt initialized")
+    user_input = "lets discuss a tech startup idea."
     orchestrator.update_conversation_stacks(previous_take=user_input, previous_take_author=orchestrator.user_alias)
     async def run_discussion_loop(max_iterations: int = 100):
         for iteration in range(max_iterations):
@@ -162,6 +158,8 @@ async def main():
             # put a check over here to see if user interrupted
             agent_index, take = await orchestrator.decide_and_get_take(orchestrator.previous_author_index)
             orchestrator.previous_author_index = agent_index
+            orchestrator.update_conversation_stacks(
+            previous_take=take, previous_take_author=orchestrator.agents[agent_index].name)
             
             print(
                 f"Agent {orchestrator.agents[agent_index].name} provided take: {take}")
@@ -176,4 +174,4 @@ async def main():
 
     await run_discussion_loop()
 
-# asyncio.run(main())
+asyncio.run(main())

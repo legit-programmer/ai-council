@@ -28,21 +28,21 @@ async def create_session(session: CreateSession):
     agents = [Agent(name=agent.name, role=agent.role, traits=agent.traits) for agent in session.agents]
     orchestrator = Orchestrator(agents=agents)
     
-    
     session_store[session.session_id] = {
         "orchestrator": orchestrator,
         "agents": agents
     }
     return {"message": "Session created successfully."}
     
-@app.post("/inference/{session_id}")
+
 async def inference_session_via_text(session_id: str, user_message: str):
     if session_id not in session_store:
         return {"error": "Session not found."}
     
-    
     orchestrator: Orchestrator = session_store[session_id]["orchestrator"]
+
     orchestrator.update_conversation_stacks(previous_take=user_message, previous_take_author=orchestrator.user_alias)
 
-    
-    o
+    orchestrator.is_user_speaking = False
+
+    orchestrator.decide_and_get_take()

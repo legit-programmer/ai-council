@@ -122,14 +122,15 @@ class Orchestrator:
                 if agent.name != agent_name:
                     self.update_conversation_stack(agent.name, take)
 
-    async def decide_and_get_take(self, prev_author_index: int):
+    async def decide_and_get_take(self):
         agent_index = random.randrange(start=0, stop=len(self.agents))
-        if agent_index == prev_author_index:
+        if agent_index == self.previous_author_index:
             agent_index = (agent_index + 1) % len(self.agents)
         agent = self.agents[agent_index]
         response = await agent.inference(
             message=f"Here is the conversation stack for you: {self.conversation_stacks[agent.name]}, please provide your next take."
         )
+        self.previous_author_index = agent_index
         return agent_index, response
 
     def check_user_interrupt(self):
@@ -156,8 +157,7 @@ async def main():
 
             print(f"\n--- Iteration {iteration + 1} ---")
             # put a check over here to see if user interrupted
-            agent_index, take = await orchestrator.decide_and_get_take(orchestrator.previous_author_index)
-            orchestrator.previous_author_index = agent_index
+            agent_index, take = await orchestrator.decide_and_get_take()
             orchestrator.update_conversation_stacks(
             previous_take=take, previous_take_author=orchestrator.agents[agent_index].name)
             

@@ -18,6 +18,7 @@ class Agent:
         self.messages = []
         self.voice_id = voice_id
         self.llm = ChatOpenAI(model="gpt-5.2", reasoning=None)
+        self.previous_author_index = -1
 
     async def inference(self, message: str, role: str = "user"):
         self.messages.append({"role": role, "content": message})
@@ -155,13 +156,12 @@ async def main():
     print("Orchestrator prompt initialized")
     orchestrator.update_conversation_stacks(previous_take=user_input, previous_take_author=orchestrator.user_alias)
     async def run_discussion_loop(max_iterations: int = 100):
-        prev_author_index = -1
         for iteration in range(max_iterations):
 
             print(f"\n--- Iteration {iteration + 1} ---")
             # put a check over here to see if user interrupted
-            agent_index, take = await orchestrator.decide_and_get_take(prev_author_index)
-            prev_author_index = agent_index
+            agent_index, take = await orchestrator.decide_and_get_take(orchestrator.previous_author_index)
+            orchestrator.previous_author_index = agent_index
             
             print(
                 f"Agent {orchestrator.agents[agent_index].name} provided take: {take}")
@@ -176,4 +176,4 @@ async def main():
 
     await run_discussion_loop()
 
-asyncio.run(main())
+# asyncio.run(main())

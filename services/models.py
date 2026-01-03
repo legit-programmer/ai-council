@@ -23,7 +23,6 @@ class CreateSession(BaseModel):
 
 
 class OrchestratorState(BaseModel):
-    agents: list[AgentConfig]
     conversation_stacks: dict[str, list[str]] = {}
     user_alias: str = "MainUser"
     previous_author_index: int = -1

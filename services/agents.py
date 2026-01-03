@@ -4,18 +4,21 @@ from langchain_openai import ChatOpenAI
 import asyncio
 from dotenv import load_dotenv
 from elevenlabs.play import play 
+from services.models import AgentConfig, OrchestratorState
 from services.elvnlabs import synthesize_and_play_speech as syn
 
 import keyboard
+
+from services.redis import RedisStore
 load_dotenv()
 
 
 class Agent:
-    def __init__(self, name: str, role: str, traits: list = None, voice_id: str = None):
+    def __init__(self, name: str, role: str, traits: list = None, voice_id: str = None, messages: list = None):
         self.name = name
         self.role = role
         self.traits = traits if traits is not None else []
-        self.messages = []
+        self.messages = messages if messages is not None else []
         self.voice_id = voice_id
         self.llm = ChatOpenAI(model="gpt-5.2", reasoning=None)
 
@@ -48,14 +51,14 @@ class Agent:
 
 
 class Orchestrator:
-    def __init__(self, agents: list[Agent]):
+    def __init__(self, agents: list[Agent], conversation_stacks: dict[str, list[str]] = None, previous_author_index: int = -1):
         self.messages = []
         self.llm = ChatOpenAI(model="gpt-5-mini")
         self.agents = agents
-        self.conversation_stacks = {agent.name: [] for agent in agents}
+        self.conversation_stacks = conversation_stacks if conversation_stacks is not None else {agent.name: [] for agent in agents}
         self.is_user_speaking = False
         self.user_alias = "MainUser"
-        self.previous_author_index = -1
+        self.previous_author_index = previous_author_index
 
     async def inference(self, message: str, role: str = "user"):
         self.messages.append({"role": role, "content": message})
@@ -114,7 +117,7 @@ class Orchestrator:
             self.clear_conversation_stack(previous_take_author)
         for agent in self.agents:
             if agent.name != previous_take_author:
-                self.update_conversation_stack(agent.name, previous_take)
+                self.update_conversation_stack(agent.name, f'{previous_take_author} says: {previous_take}')
 
     def update_conversation_stacks_bulk(self, agent_takes: dict):
         for agent_name, take in agent_takes.items():
@@ -138,31 +141,38 @@ class Orchestrator:
 
 
 async def main():
-    agent1 = Agent(name="Alex", role="supportive Friend",
-                   traits=["Empathetic", "Thoughtful", "Supportive"], voice_id="6WjhCXzqp2hnSqFtrG8P")
-    print("Initialized Agent 1")
-    agent2 = Agent(name="Jordan", role="Life Coach",
-                   traits=["Compassionate", "Understanding", "Encouraging"], voice_id="rAsfH6d68tmh0XRGXp4D")
-    print("Initialized Agent 2")
-    agent3 = Agent(name="Taylor", role="Therapist",
-                   traits=["Warm", "Patient", "Caring"], voice_id="xNtG3W2oqJs0cJZuTyBc")
-    print("Initialized Agent 3")
-    print("Initialized Agent 4")
-    orchestrator = Orchestrator(agents=[agent1, agent2, agent3])
-    print("Initialized Orchestrator")
-    user_input = "lets discuss a tech startup idea."
-    orchestrator.update_conversation_stacks(previous_take=user_input, previous_take_author=orchestrator.user_alias)
+    store = RedisStore()
+    store.create_session(
+        session_id="session_123", agents=[
+            AgentConfig(name="Agent1", role="Tech Expert", traits=["Innovative", "Analytical"], voice_id="6WjhCXzqp2hnSqFtrG8P"),
+            AgentConfig(name="Agent2", role="Business Strategist", traits=["Pragmatic", "Visionary"], voice_id="rAsfH6d68tmh0XRGXp4D"),
+            AgentConfig(name="Agent3", role="Marketing Guru", traits=["Creative", "Persuasive"], voice_id="xNtG3W2oqJs0cJZuTyBc"),
+        ])
+    
     async def run_discussion_loop(max_iterations: int = 100):
         for iteration in range(max_iterations):
-
             print(f"\n--- Iteration {iteration + 1} ---")
-            # put a check over here to see if user interrupted
+            session_data = store.get_session("session_123")
+            print(session_data)
+            agents_state: list[AgentConfig] = session_data['agents_state']
+            orchestrator_state: OrchestratorState = session_data['orchestrator_state']
+            agents = [Agent(
+                name=agent_cfg.name,
+                role=agent_cfg.role,
+                traits=agent_cfg.traits,
+                voice_id=agent_cfg.voice_id,
+                messages=agent_cfg.messages
+            ) for agent_cfg in agents_state]
+            orchestrator = Orchestrator(agents=agents, conversation_stacks=orchestrator_state.conversation_stacks, previous_author_index=orchestrator_state.previous_author_index)
+            if iteration == 0:
+                user_input = "count till 10 one by one"
+                orchestrator.update_conversation_stacks(previous_take=user_input, previous_take_author=orchestrator.user_alias)
             agent_index, take = await orchestrator.decide_and_get_take()
             orchestrator.update_conversation_stacks(
             previous_take=take, previous_take_author=orchestrator.agents[agent_index].name)
             
-            print(
-                f"Agent {orchestrator.agents[agent_index].name} provided take: {take}")
+            # print(
+            #     # f"{orchestrator.agents[agent_index].name} provided take: {take}")
             syn(text=take, voice_id=orchestrator.agents[agent_index].voice_id)
 
             if orchestrator.check_user_interrupt():
@@ -172,6 +182,14 @@ async def main():
                     previous_take=user_take, previous_take_author=orchestrator.user_alias)
                 orchestrator.is_user_speaking = False
 
+            store.update_session(
+                session_id="session_123",
+                agents=[AgentConfig(name=agent.name, role=agent.role, traits=agent.traits, voice_id=agent.voice_id, messages=agent.messages) for agent in orchestrator.agents],
+                orchestrator_state=OrchestratorState(
+                    conversation_stacks=orchestrator.conversation_stacks,
+                    previous_author_index=orchestrator.previous_author_index
+                )
+            )
     await run_discussion_loop()
 
 asyncio.run(main())

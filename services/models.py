@@ -4,6 +4,8 @@ class AgentConfig(BaseModel):
     name: str
     role: str
     traits: list[str]
+    messages: list[dict] = []  
+    voice_id: str = None
 
 class CreateSession(BaseModel):
     session_id: str
@@ -17,3 +19,11 @@ class CreateSession(BaseModel):
             raise ValueError(
                 "The number of roles must match the number of traits lists.")
         return values
+    
+
+
+class OrchestratorState(BaseModel):
+    agents: list[AgentConfig]
+    conversation_stacks: dict[str, list[str]] = {}
+    user_alias: str = "MainUser"
+    previous_author_index: int = -1

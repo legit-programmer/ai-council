@@ -4,7 +4,7 @@ from langchain_openai import ChatOpenAI
 import asyncio
 from dotenv import load_dotenv
 from elevenlabs.play import play 
-from services.models import AgentConfig, OrchestratorState
+from services.models import AgentConfig, OrchestratorState, UpdateSession
 from services.elvnlabs import synthesize_and_play_speech as syn
 
 import keyboard
@@ -142,8 +142,9 @@ class Orchestrator:
 
 async def main():
     store = RedisStore()
+    id = "session_123"
     store.create_session(
-        session_id="session_123", agents=[
+        session_id=id, agents=[
             AgentConfig(name="Agent1", role="Tech Expert", traits=["Innovative", "Analytical"], voice_id="6WjhCXzqp2hnSqFtrG8P"),
             AgentConfig(name="Agent2", role="Business Strategist", traits=["Pragmatic", "Visionary"], voice_id="rAsfH6d68tmh0XRGXp4D"),
             AgentConfig(name="Agent3", role="Marketing Guru", traits=["Creative", "Persuasive"], voice_id="xNtG3W2oqJs0cJZuTyBc"),
@@ -152,10 +153,15 @@ async def main():
     async def run_discussion_loop(max_iterations: int = 100):
         for iteration in range(max_iterations):
             print(f"\n--- Iteration {iteration + 1} ---")
-            session_data = store.get_session("session_123")
-            print(session_data)
-            agents_state: list[AgentConfig] = session_data['agents_state']
-            orchestrator_state: OrchestratorState = session_data['orchestrator_state']
+            #get session data
+            session_data = store.get_session(id)
+            # print(session_data)
+            agents_state: list[AgentConfig] = session_data.agents_state
+            orchestrator_state: OrchestratorState = session_data.orchestrator_state
+
+
+
+            # reconstruct agents and orchestrator
             agents = [Agent(
                 name=agent_cfg.name,
                 role=agent_cfg.role,
@@ -164,6 +170,9 @@ async def main():
                 messages=agent_cfg.messages
             ) for agent_cfg in agents_state]
             orchestrator = Orchestrator(agents=agents, conversation_stacks=orchestrator_state.conversation_stacks, previous_author_index=orchestrator_state.previous_author_index)
+
+
+            # provide initial user input
             if iteration == 0:
                 user_input = "count till 10 one by one"
                 orchestrator.update_conversation_stacks(previous_take=user_input, previous_take_author=orchestrator.user_alias)
@@ -171,25 +180,44 @@ async def main():
             orchestrator.update_conversation_stacks(
             previous_take=take, previous_take_author=orchestrator.agents[agent_index].name)
             
-            # print(
-            #     # f"{orchestrator.agents[agent_index].name} provided take: {take}")
+
+            # response log
+            print(
+                f"{orchestrator.agents[agent_index].name} provided take: {take}")
             syn(text=take, voice_id=orchestrator.agents[agent_index].voice_id)
 
-            if orchestrator.check_user_interrupt():
-                orchestrator.is_user_speaking = True
-                user_take = input("User, please provide your take: ")
-                orchestrator.update_conversation_stacks(
-                    previous_take=user_take, previous_take_author=orchestrator.user_alias)
-                orchestrator.is_user_speaking = False
 
+
+            # check and treat user queue
+            # future improvement: implement pubsub and restart loop on new message event
+            user_messages = store.get_user_messages(session_id=id)
+            print(f"User messages in queue: {user_messages}")
+            if len(user_messages) > 0:
+                messages = ','.join(user_messages)
+                orchestrator.update_conversation_stacks(
+                    previous_take=messages, previous_take_author=orchestrator.user_alias
+                )
+                store.clear_user_messages(session_id=id) # clear user messages after adding to the stacks
+
+
+            # add more robust approach for updading state for eg only updating delta changes
             store.update_session(
-                session_id="session_123",
-                agents=[AgentConfig(name=agent.name, role=agent.role, traits=agent.traits, voice_id=agent.voice_id, messages=agent.messages) for agent in orchestrator.agents],
-                orchestrator_state=OrchestratorState(
-                    conversation_stacks=orchestrator.conversation_stacks,
-                    previous_author_index=orchestrator.previous_author_index
+                session_id=id,
+                update_session=UpdateSession(
+                    agents=[AgentConfig(  
+                        name=agent.name,
+                        role=agent.role,
+                        traits=agent.traits,
+                        messages=agent.messages,
+                        voice_id=agent.voice_id
+                    ) for agent in orchestrator.agents],
+                    orchestrator_state=OrchestratorState(
+                        conversation_stacks=orchestrator.conversation_stacks,
+                        previous_author_index=orchestrator.previous_author_index
+                    )
                 )
             )
+
     await run_discussion_loop()
 
 asyncio.run(main())

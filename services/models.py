@@ -26,3 +26,11 @@ class OrchestratorState(BaseModel):
     conversation_stacks: dict[str, list[str]] = {}
     user_alias: str = "MainUser"
     previous_author_index: int = -1
+
+class UpdateSession(BaseModel):
+    agents: list[AgentConfig]
+    orchestrator_state: OrchestratorState
+
+class SessionData(BaseModel):
+    agents_state: list[AgentConfig]
+    orchestrator_state: OrchestratorState

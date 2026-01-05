@@ -1,5 +1,5 @@
 import redis
-from services.models import AgentConfig, OrchestratorState
+from services.models import AgentConfig, OrchestratorState, UpdateSession, SessionData
 import ast
 from services.prompts import SUB_AGENT_PROMPT
 
@@ -25,29 +25,45 @@ class RedisStore:
         ).model_dump()
         self.client.hset(key, mapping={'agents_state': str(agents_state)})
         self.client.hset(key, mapping={'orchestrator_state': str(orchestrator_state)})
+        self.client.hset(key, mapping={'user_messages': str([])})
         print(f"Session {session_id} created in Redis.")
     
     def get_session(self, session_id: str):
         key = f'session:{session_id}'
-        agents_state: str = self.client.hget(key, 'agents_state').decode('utf-8')
+        agents_state = self.client.hget(key, 'agents_state').decode('utf-8')
         agents_state = ast.literal_eval(agents_state)
         agents_state = [AgentConfig.model_validate(agent) for agent in agents_state]
         orchestrator_state = self.client.hget(key, 'orchestrator_state').decode('utf-8')
         orchestrator_state = ast.literal_eval(orchestrator_state)
         orchestrator_state = OrchestratorState.model_validate(orchestrator_state)
         if agents_state and orchestrator_state:
-            return {
-                'agents_state': agents_state,
-                'orchestrator_state': orchestrator_state
-            }
+            return SessionData(
+                agents_state=agents_state,
+                orchestrator_state=orchestrator_state,
+            )
         else:
             print(f"Session {session_id} not found in Redis.")
             return None
 
-    def update_session(self, session_id: str, agents: list[AgentConfig], orchestrator_state: OrchestratorState):
+    def update_session(self, session_id: str, update_session: UpdateSession):
         key = f'session:{session_id}'
-        agents_state= [agent.model_dump() for agent in agents]
-        self.client.hset(key, mapping={'agents_state': str(agents_state)})
-        self.client.hset(key, mapping={'orchestrator_state': str(orchestrator_state.model_dump())})
+        agents_state= [agent.model_dump() for agent in update_session.agents]
+        self.client.hset(key, mapping={'agents_state': str(agents_state),
+                                       'orchestrator_state': str(update_session.orchestrator_state.model_dump())            })
         print(f"Session {session_id} updated in Redis.")
-        
+
+    def add_user_message(self, session_id: str, user_message: str):
+        key = f'session:{session_id}:user_messages'
+        self.client.rpush(key, user_message)
+        print(f"User message added to session {session_id} in Redis.")
+
+    def get_user_messages(self, session_id: str):
+        key = f'session:{session_id}:user_messages'
+        user_messages = self.client.lrange(key, 0, -1)
+        user_messages = [msg.decode('utf-8') for msg in user_messages]
+        return user_messages
+    
+    def clear_user_messages(self, session_id: str):
+        key = f'session:{session_id}:user_messages'
+        self.client.delete(key)
+        print(f"User messages cleared for session {session_id} in Redis.")

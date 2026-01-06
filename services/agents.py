@@ -148,17 +148,26 @@ store.create_session(
         AgentConfig(name="Agent3", role="Marketing Guru", traits=["Creative", "Persuasive"], voice_id="xNtG3W2oqJs0cJZuTyBc"),
     ])
 
+id = "session_1234"
+store.create_session(
+    session_id=id, agents=[
+        AgentConfig(name="Agent1", role="Tech Expert", traits=["Innovative", "Analytical"], voice_id="6WjhCXzqp2hnSqFtrG8P"),
+        AgentConfig(name="Agent2", role="Business Strategist", traits=["Pragmatic", "Visionary"], voice_id="rAsfH6d68tmh0XRGXp4D"),
+        AgentConfig(name="Agent3", role="Marketing Guru", traits=["Creative", "Persuasive"], voice_id="xNtG3W2oqJs0cJZuTyBc"),
+    ])
 
-async def run_discussion_loop(max_iterations: int = 100):
+
+
+async def run_discussion_loop(session_id:str, max_iterations: int = 100):
     for iteration in range(max_iterations):
         print(f"\n--- Iteration {iteration + 1} ---")
         #get session data
-        session_data = store.get_session(id)
-        print(session_data.stop)
+        session_data = store.get_session(session_id)
+        
         if session_data.stop=='true':
             print("exiting gracefully") # can be checked and treated on the websocket layer
             break
-        # print(session_data)
+        
         agents_state: list[AgentConfig] = session_data.agents_state
         orchestrator_state: OrchestratorState = session_data.orchestrator_state
 
@@ -174,12 +183,16 @@ async def run_discussion_loop(max_iterations: int = 100):
         ) for agent_cfg in agents_state]
         orchestrator = Orchestrator(agents=agents, conversation_stacks=orchestrator_state.conversation_stacks, previous_author_index=orchestrator_state.previous_author_index)
 
-
         # provide initial user input
         if iteration == 0:
             user_input = "count till 10 one by one"
             orchestrator.update_conversation_stacks(previous_take=user_input, previous_take_author=orchestrator.user_alias)
+
+        print('before llm call')
         agent_index, take = await orchestrator.decide_and_get_take()
+        print('after llm call')
+
+
         orchestrator.update_conversation_stacks(
         previous_take=take, previous_take_author=orchestrator.agents[agent_index].name)
         
@@ -205,7 +218,7 @@ async def run_discussion_loop(max_iterations: int = 100):
 
         # add more robust approach for updading state for eg only updating delta changes
         store.update_session(
-            session_id=id,
+            session_id=session_id,
             update_session=UpdateSession(
                 agents=[AgentConfig(  
                     name=agent.name,
@@ -223,4 +236,12 @@ async def run_discussion_loop(max_iterations: int = 100):
 
 
 
-asyncio.run(run_discussion_loop())
+
+async def main():
+    asyncio.create_task(run_discussion_loop(session_id="session_123"))
+    asyncio.create_task(run_discussion_loop(session_id="session_1234"))
+    while True:
+        await asyncio.sleep(1)
+        
+
+asyncio.run(main())

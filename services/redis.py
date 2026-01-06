@@ -23,9 +23,13 @@ class RedisStore:
         orchestrator_state = OrchestratorState(
             conversation_stacks={agent.name: [] for agent in agents},
         ).model_dump()
-        self.client.hset(key, mapping={'agents_state': str(agents_state)})
-        self.client.hset(key, mapping={'orchestrator_state': str(orchestrator_state)})
-        self.client.hset(key, mapping={'user_messages': str([])})
+
+        self.client.hset(key, mapping={'agents_state': str(agents_state),
+                                    'orchestrator_state': str(orchestrator_state) ,
+                                    'pause': 'false',
+                                    'stop': 'false'
+
+                                    })
         print(f"Session {session_id} created in Redis.")
     
     def get_session(self, session_id: str):
@@ -36,10 +40,14 @@ class RedisStore:
         orchestrator_state = self.client.hget(key, 'orchestrator_state').decode('utf-8')
         orchestrator_state = ast.literal_eval(orchestrator_state)
         orchestrator_state = OrchestratorState.model_validate(orchestrator_state)
+        pause = ast.literal_eval(str(self.client.hget(key,'pause')))
+        stop = ast.literal_eval(str(self.client.hget(key,'stop')))
         if agents_state and orchestrator_state:
             return SessionData(
                 agents_state=agents_state,
                 orchestrator_state=orchestrator_state,
+                pause=pause,
+                stop=stop
             )
         else:
             print(f"Session {session_id} not found in Redis.")
@@ -67,3 +75,13 @@ class RedisStore:
         key = f'session:{session_id}:user_messages'
         self.client.delete(key)
         print(f"User messages cleared for session {session_id} in Redis.")
+
+    def stop_session(self, session_id: str):
+        key = f'session:{session_id}'
+        self.client.hset(key, 'stop', 'true')
+        print(f"Session stopped for session {session_id} in Redis.")
+    
+    def pause_session(self, session_id: str):
+        key = f'session:{session_id}'
+        self.client.hset(key, 'pause', 'true')
+        print(f"Session paused for session {session_id} in Redis.")

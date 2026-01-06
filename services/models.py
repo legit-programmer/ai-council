@@ -34,3 +34,5 @@ class UpdateSession(BaseModel):
 class SessionData(BaseModel):
     agents_state: list[AgentConfig]
     orchestrator_state: OrchestratorState
+    pause: str
+    stop: str

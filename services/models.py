@@ -1,15 +1,19 @@
 from pydantic import BaseModel, model_validator
+from typing import Optional, Literal
+from enum import Enum
+
 
 class AgentConfig(BaseModel):
     name: str
     role: str
     traits: list[str]
-    messages: list[dict] = []  
+    messages: list[dict] = []
     voice_id: str = None
+
 
 class CreateSession(BaseModel):
     session_id: str
-    agents: list[AgentConfig]  
+    agents: list[AgentConfig]
 
     @model_validator(mode="before")
     def check_roles_and_traits(cls, values):
@@ -19,7 +23,6 @@ class CreateSession(BaseModel):
             raise ValueError(
                 "The number of roles must match the number of traits lists.")
         return values
-    
 
 
 class OrchestratorState(BaseModel):
@@ -27,12 +30,24 @@ class OrchestratorState(BaseModel):
     user_alias: str = "MainUser"
     previous_author_index: int = -1
 
+
 class UpdateSession(BaseModel):
     agents: list[AgentConfig]
     orchestrator_state: OrchestratorState
+
 
 class SessionData(BaseModel):
     agents_state: list[AgentConfig]
     orchestrator_state: OrchestratorState
     pause: str
     stop: str
+
+
+class EventType(str, Enum):
+    START = 'START'
+    STOP = 'STOP'
+
+
+class Event(BaseModel):
+    type: Literal["START", "STOP"]
+    data: Optional[str] = None

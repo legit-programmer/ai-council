@@ -85,3 +85,12 @@ class RedisStore:
         key = f'session:{session_id}'
         self.client.hset(key, 'pause', 'true')
         print(f"Session paused for session {session_id} in Redis.")
+
+
+instance = None
+
+def get_redis_store():
+    global instance
+    if not instance:
+        return RedisStore()
+    return instance

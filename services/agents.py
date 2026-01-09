@@ -6,10 +6,8 @@ from dotenv import load_dotenv
 from elevenlabs.play import play 
 from services.models import AgentConfig, OrchestratorState, UpdateSession
 from services.elvnlabs import synthesize_and_play_speech as syn
-
 import keyboard
-
-from services.redis import RedisStore
+from services.redis import get_redis_store
 load_dotenv()
 
 
@@ -139,7 +137,7 @@ class Orchestrator:
     def check_user_interrupt(self):
         return keyboard.is_pressed('i')
 
-store = RedisStore()
+store = get_redis_store()
 id = "session_123"
 store.create_session(
     session_id=id, agents=[
@@ -244,4 +242,4 @@ async def main():
         await asyncio.sleep(1)
         
 
-asyncio.run(main())
+# asyncio.run(main())

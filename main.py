@@ -29,8 +29,12 @@ async def create_session(session: CreateSession):
     
 
 @app.websocket('/ws/connect')
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket, session_id: str):
     await manager.authenticate_connection(websocket)
-    await manager.handle_connection(websocket)
+    await manager.handle_connection(websocket, session_id)
     while True:
-        await manager.recieve_and_handle_event(websocket)
+        await manager.recieve_and_handle_event(websocket, session_id)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

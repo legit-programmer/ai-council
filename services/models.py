@@ -51,3 +51,7 @@ class EventType(str, Enum):
 class Event(BaseModel):
     type: Literal["START", "STOP"]
     data: Optional[str] = None
+
+class AudioEvent(BaseModel):
+    agent_name: str
+    voice_id: str

@@ -1,11 +1,13 @@
 import random
+
+from fastapi import WebSocket
 from services.prompts import SUB_AGENT_PROMPT, ORCHESTRATOR_PROMPT
 from langchain_openai import ChatOpenAI
 import asyncio
 from dotenv import load_dotenv
 from elevenlabs.play import play 
-from services.models import AgentConfig, OrchestratorState, UpdateSession
-from services.elvnlabs import synthesize_and_play_speech as syn
+from services.models import AgentConfig, OrchestratorState, UpdateSession, AudioEvent
+from services.elvnlabs import asynthesize_and_return_speech, synthesize_and_play_speech as syn
 import keyboard
 from services.redis import get_redis_store
 load_dotenv()
@@ -156,7 +158,7 @@ store.create_session(
 
 
 
-async def run_discussion_loop(session_id:str, max_iterations: int = 100):
+async def run_discussion_loop(session_id:str, websocket: WebSocket, max_iterations: int = 100):
     for iteration in range(max_iterations):
         print(f"\n--- Iteration {iteration + 1} ---")
         #get session data
@@ -196,9 +198,15 @@ async def run_discussion_loop(session_id:str, max_iterations: int = 100):
         
 
         # response log
+        agent = orchestrator.agents[agent_index]
         print(
-            f"{orchestrator.agents[agent_index].name} provided take: {take}")
-        syn(text=take, voice_id=orchestrator.agents[agent_index].voice_id)
+            f"{agent.name} provided take: {take}")
+        async for chunk in asynthesize_and_return_speech(text=take, voice_id=agent.voice_id):
+            event = AudioEvent(agent_name=agent.name, voice_id=agent.voice_id).model_dump_json()
+            await websocket.send_json(event)
+            await websocket.send_bytes(chunk)
+            
+            
 
 
 

@@ -1,12 +1,13 @@
 from fastapi.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from services.models import Event, EventType
 from services.agents import run_discussion_loop
+from asyncio.tasks import Task
 
 import asyncio
 class ConnectionManager:
     def __init__(self):
-        self.active_connection = {}
-        self.active_sessions = {}
+        self.active_connection: dict[str, WebSocket] = {}
+        self.active_sessions: dict[str, Task] = {}
         
     async def authenticate_connection(self, websocket: WebSocket):
         pass
@@ -26,12 +27,18 @@ class ConnectionManager:
 
             if event.type==EventType.START:
                 if session_id not in self.active_sessions:
-                    asyncio.create_task(run_discussion_loop(session_id))
+                    task = asyncio.create_task(run_discussion_loop(session_id, websocket))
+                    self.active_sessions[session_id] = task
                     await websocket.send_text("started")
                 else:
                     await websocket.send_denial_response("Session already active")
             if event.type==EventType.STOP:
-                print("stop")
+                if session_id not in self.active_sessions:
+                    await websocket.send_text("No session running.")
+                else:
+                    self.active_sessions[session_id].cancel()
+                    print("Stopped session: ", session_id)
+                    await websocket.send_text("Session stopped.")
         except Exception as e:
             print(e)
             await websocket.send_text("Not a valid event.")

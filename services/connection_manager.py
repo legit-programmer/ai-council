@@ -1,6 +1,6 @@
 from fastapi.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from services.models import Event, EventType
-from services.agents import run_discussion_loop
+from services.loop import run_discussion_loop
 from asyncio.tasks import Task
 
 import asyncio

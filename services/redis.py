@@ -2,6 +2,7 @@ import redis
 from services.models import AgentConfig, OrchestratorState, UpdateSession, SessionData
 import ast
 from services.prompts import SUB_AGENT_PROMPT
+from services.agents import Agent, Orchestrator
 
 class RedisStore:
     def __init__(self, host='localhost', port=6379, db=0):
@@ -86,6 +87,23 @@ class RedisStore:
         self.client.hset(key, 'pause', 'true')
         print(f"Session paused for session {session_id} in Redis.")
 
+    def update_session_from_orchestrator(self, session_id: str, orchestrator: Orchestrator):
+        self.update_session(
+            session_id=session_id,
+            update_session=UpdateSession(
+                agents=[AgentConfig(  
+                    name=agent.name,
+                    role=agent.role,
+                    traits=agent.traits,
+                    messages=agent.messages,
+                    voice_id=agent.voice_id
+                ) for agent in orchestrator.agents],
+                orchestrator_state=OrchestratorState(
+                    conversation_stacks=orchestrator.conversation_stacks,
+                    previous_author_index=orchestrator.previous_author_index
+                )
+            )
+        )
 
 instance = None
 

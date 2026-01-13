@@ -46,10 +46,11 @@ class SessionData(BaseModel):
 class EventType(str, Enum):
     START = 'START'
     STOP = 'STOP'
+    TEXT_INPUT = 'TEXT_INPUT'
 
 
 class Event(BaseModel):
-    type: Literal["START", "STOP"]
+    type: Literal["START", "STOP", "TEXT_INPUT"]
     data: Optional[str] = None
 
 class AudioEvent(BaseModel):

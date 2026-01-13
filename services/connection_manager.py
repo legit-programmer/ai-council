@@ -2,7 +2,10 @@ from fastapi.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from services.models import Event, EventType
 from services.loop import run_discussion_loop
 from asyncio.tasks import Task
+from services.redis import get_redis_store
 
+
+store = get_redis_store()
 import asyncio
 class ConnectionManager:
     def __init__(self):
@@ -24,21 +27,32 @@ class ConnectionManager:
         try:
             raw_event = await websocket.receive_json()
             event = Event(**raw_event)
+            session_active = session_id in self.active_sessions
 
             if event.type==EventType.START:
-                if session_id not in self.active_sessions:
+                if not session_active:
                     task = asyncio.create_task(run_discussion_loop(session_id, websocket))
                     self.active_sessions[session_id] = task
-                    await websocket.send_text("started")
+                    return await websocket.send_text("started")
                 else:
-                    await websocket.send_denial_response("Session already active")
+                    return await websocket.send_denial_response("Session already active")
+                
+            if not session_active:
+                return await websocket.send_text("No session running.")
+            
             if event.type==EventType.STOP:
-                if session_id not in self.active_sessions:
-                    await websocket.send_text("No session running.")
-                else:
-                    self.active_sessions[session_id].cancel()
-                    print("Stopped session: ", session_id)
-                    await websocket.send_text("Session stopped.")
+                self.active_sessions[session_id].cancel()
+                print("Stopped session: ", session_id)
+                return await websocket.send_text("Session stopped.")
+            
+            elif event.type==EventType.TEXT_INPUT:
+                text: str = event.data
+                if len(text.strip()) > 1:
+                    store.add_user_message(session_id, text)
+                    return await websocket.send_text('added to queue')
+                
+                return await websocket.send_text("invalid user input")
+            
         except Exception as e:
             print(e)
             await websocket.send_text("Not a valid event.")

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Audio Streamer</title>
+    </head>
+    <body>
+        <h1>Audio Streaming</h1>
+        <button id="startBtn">Start Recording</button>
+        <button id="stopBtn" disabled>Stop Recording</button>
+        <p id="status">Not connected</p>
+
+        <script>
+            let mediaRecorder;
+            let websocket;
+            let audioChunks = [];
+
+            const startBtn = document.getElementById("startBtn");
+            const stopBtn = document.getElementById("stopBtn");
+            const status = document.getElementById("status");
+
+            startBtn.addEventListener("click", async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        audio: true,
+                    });
+
+                    websocket = new WebSocket(
+                        "ws://127.0.0.1:8000/ws/connect?session_id=session_1234"
+                    );
+
+                    websocket.onopen = () => {
+                        status.textContent = "Connected";
+
+                        mediaRecorder = new MediaRecorder(stream);
+
+                        mediaRecorder.ondataavailable = (event) => {
+                            if (
+                                event.data.size > 0 &&
+                                websocket.readyState === WebSocket.OPEN
+                            ) {
+                                websocket.send(event.data);
+                            }
+                        };
+
+                        mediaRecorder.start(1000); // 1 second chunks
+
+                        startBtn.disabled = true;
+                        stopBtn.disabled = false;
+                    };
+
+                    websocket.onerror = (error) => {
+                        status.textContent = "WebSocket error";
+                        console.error("WebSocket error:", error);
+                    };
+
+                    websocket.onclose = () => {
+                        status.textContent = "Disconnected";
+                    };
+                } catch (error) {
+                    status.textContent = "Microphone access denied";
+                    console.error("Error:", error);
+                }
+            });
+
+            stopBtn.addEventListener("click", () => {
+                if (mediaRecorder) {
+                    mediaRecorder.stop();
+                    mediaRecorder.stream
+                        .getTracks()
+                        .forEach((track) => track.stop());
+                }
+                if (websocket) {
+                    websocket.close();
+                }
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                status.textContent = "Stopped";
+            });
+        </script>
+    </body>
+</html>

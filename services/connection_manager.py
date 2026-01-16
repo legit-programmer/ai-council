@@ -1,7 +1,10 @@
 from fastapi.websockets import WebSocket, WebSocketDisconnect, WebSocketState
+from starlette.types import Message
 from services.models import Event, EventType
 from services.loop import run_discussion_loop
 from asyncio.tasks import Task
+import json
+from json import JSONDecodeError
 from services.redis import get_redis_store
 
 
@@ -25,8 +28,14 @@ class ConnectionManager:
     
     async def recieve_and_handle_event(self, websocket: WebSocket, session_id: str):
         try:
-            raw_event = await websocket.receive_json()
-            event = Event(**raw_event)
+            event = await self.validate_message_type(websocket)
+
+            if not event:
+                return 
+            elif isinstance(event, bytes):
+                return await self.process_audio_chunks()
+            
+
             session_active = session_id in self.active_sessions
 
             if event.type==EventType.START:
@@ -52,9 +61,25 @@ class ConnectionManager:
                     return await websocket.send_text('added to queue')
                 
                 return await websocket.send_text("invalid user input")
-            
         except Exception as e:
-            print(e)
+            print(f'Error: {e}')
             await websocket.send_text("Not a valid event.")
 
+    async def validate_message_type(self, websocket: WebSocket) -> Event | bytes | None:
+        message = await websocket.receive()
+        
+        if message.get('type')=="websocket.receive":
+            if 'text' in message:
+                text = message['text']
+                try:
+                    json_text = json.loads(text)
+                    return Event(**json_text)
+                except JSONDecodeError:
+                    await websocket.send_text("Invalid event format")
+            elif 'bytes' in message:
+                print('here')
+                return message['bytes']
 
+
+    async def process_audio_chunks(self):
+        print('test process')

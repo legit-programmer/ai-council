@@ -20,7 +20,7 @@ AI Council allows you to create virtual discussion panels with multiple AI agent
 
 ### Proposed architecture
 
-![architecture image](image.png)
+![architecture](image.png)
 
 ## Features
 

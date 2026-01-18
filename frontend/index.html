@@ -3,80 +3,457 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Audio Streamer</title>
+        <title>AI Council</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            .section {
+                margin-bottom: 30px;
+                padding: 20px;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+            }
+            .form-group {
+                margin-bottom: 15px;
+            }
+            label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: bold;
+            }
+            input,
+            textarea {
+                width: 100%;
+                padding: 8px;
+                box-sizing: border-box;
+            }
+            button {
+                padding: 10px 20px;
+                margin-right: 10px;
+                cursor: pointer;
+            }
+            button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            #status {
+                padding: 10px;
+                border-radius: 3px;
+                font-weight: bold;
+            }
+            .status-connected {
+                background-color: #d4edda;
+                color: #155724;
+            }
+            .status-disconnected {
+                background-color: #f8d7da;
+                color: #721c24;
+            }
+            #conversationDisplay {
+                max-height: 500px;
+                overflow-y: auto;
+                padding: 15px;
+                background-color: #f5f5f5;
+                border-radius: 5px;
+            }
+            .agent-message {
+                margin-bottom: 15px;
+                padding: 10px;
+                background-color: white;
+                border-left: 4px solid #007bff;
+                border-radius: 3px;
+            }
+            .agent-name {
+                font-weight: bold;
+                color: #007bff;
+                margin-bottom: 5px;
+            }
+            .agent-text {
+                color: #333;
+            }
+            .agent-config {
+                background-color: #f8f9fa;
+                padding: 10px;
+                margin-bottom: 10px;
+                border-radius: 3px;
+            }
+            .remove-btn {
+                background-color: #dc3545;
+                color: white;
+                border: none;
+                padding: 5px 10px;
+                border-radius: 3px;
+                cursor: pointer;
+            }
+        </style>
     </head>
     <body>
-        <h1>Audio Streaming</h1>
-        <button id="startBtn">Start Recording</button>
-        <button id="stopBtn" disabled>Stop Recording</button>
-        <p id="status">Not connected</p>
+        <h1>AI Council</h1>
+
+        <!-- Session Creation Section -->
+        <div class="section" id="sessionCreationSection">
+            <h2>Create Session</h2>
+            <div class="form-group">
+                <label for="sessionId">Session ID:</label>
+                <input
+                    type="text"
+                    id="sessionId"
+                    placeholder="e.g., session_123"
+                />
+            </div>
+
+            <div id="agentsContainer">
+                <h3>Agents</h3>
+            </div>
+
+            <button id="addAgentBtn">Add Agent</button>
+            <button id="createSessionBtn">Create Session</button>
+            <p id="sessionStatus"></p>
+        </div>
+
+        <!-- Connection Section -->
+        <div class="section" id="connectionSection" style="display: none">
+            <h2>Connection</h2>
+            <div class="form-group">
+                <label for="connectSessionId">Session ID:</label>
+                <input
+                    type="text"
+                    id="connectSessionId"
+                    placeholder="Enter session ID"
+                />
+            </div>
+            <button id="connectBtn">Connect to Session</button>
+            <p id="status" class="status-disconnected">Not connected</p>
+        </div>
+
+        <!-- Discussion Control Section -->
+        <div class="section" id="discussionSection" style="display: none">
+            <h2>Discussion Control</h2>
+            <button id="startDiscussionBtn" disabled>Start Discussion</button>
+            <button id="stopDiscussionBtn" disabled>Stop Discussion</button>
+
+            <div style="margin-top: 20px">
+                <h3>Conversation</h3>
+                <div id="conversationDisplay"></div>
+            </div>
+        </div>
 
         <script>
-            let mediaRecorder;
-            let websocket;
-            let audioChunks = [];
+            let websocket = null;
+            let audioContext = null;
+            let audioQueue = [];
+            let isPlaying = false;
+            let currentAudioBuffers = [];
+            let agentCount = 0;
 
-            const startBtn = document.getElementById("startBtn");
-            const stopBtn = document.getElementById("stopBtn");
+            const sessionStatus = document.getElementById("sessionStatus");
             const status = document.getElementById("status");
+            const conversationDisplay = document.getElementById(
+                "conversationDisplay",
+            );
+            const addAgentBtn = document.getElementById("addAgentBtn");
+            const createSessionBtn =
+                document.getElementById("createSessionBtn");
+            const connectBtn = document.getElementById("connectBtn");
+            const startDiscussionBtn =
+                document.getElementById("startDiscussionBtn");
+            const stopDiscussionBtn =
+                document.getElementById("stopDiscussionBtn");
 
-            startBtn.addEventListener("click", async () => {
+            // Initialize audio context
+            function initAudioContext() {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext ||
+                        window.webkitAudioContext)();
+                }
+            }
+
+            // Add agent form
+            function addAgentForm() {
+                agentCount++;
+                const agentDiv = document.createElement("div");
+                agentDiv.className = "agent-config";
+                agentDiv.id = `agent-${agentCount}`;
+                agentDiv.innerHTML = `
+                    <h4>Agent ${agentCount}</h4>
+                    <label>Name:</label>
+                    <input type="text" class="agent-name-input" placeholder="e.g., Agent1" />
+                    
+                    <label>Role:</label>
+                    <input type="text" class="agent-role-input" placeholder="e.g., Tech Expert" />
+                    
+                    <label>Traits (comma-separated):</label>
+                    <input type="text" class="agent-traits-input" placeholder="e.g., Innovative, Analytical" />
+                    
+                    <label>Voice ID:</label>
+                    <input type="text" class="agent-voice-input" placeholder="e.g., 6WjhCXzqp2hnSqFtrG8P" />
+                    
+                    <button class="remove-btn" onclick="removeAgent(${agentCount})">Remove</button>
+                `;
+                document
+                    .getElementById("agentsContainer")
+                    .appendChild(agentDiv);
+            }
+
+            function removeAgent(id) {
+                const agentDiv = document.getElementById(`agent-${id}`);
+                if (agentDiv) {
+                    agentDiv.remove();
+                }
+            }
+
+            // Create session
+            createSessionBtn.addEventListener("click", async () => {
+                const sessionId = document
+                    .getElementById("sessionId")
+                    .value.trim();
+                if (!sessionId) {
+                    sessionStatus.textContent = "Please enter a session ID";
+                    return;
+                }
+
+                const agents = [];
+                const agentDivs = document.querySelectorAll(".agent-config");
+
+                for (const agentDiv of agentDivs) {
+                    const name = agentDiv
+                        .querySelector(".agent-name-input")
+                        .value.trim();
+                    const role = agentDiv
+                        .querySelector(".agent-role-input")
+                        .value.trim();
+                    const traitsStr = agentDiv
+                        .querySelector(".agent-traits-input")
+                        .value.trim();
+                    const voiceId = agentDiv
+                        .querySelector(".agent-voice-input")
+                        .value.trim();
+
+                    if (name && role && traitsStr && voiceId) {
+                        const traits = traitsStr
+                            .split(",")
+                            .map((t) => t.trim());
+                        agents.push({
+                            name: name,
+                            role: role,
+                            traits: traits,
+                            voice_id: voiceId,
+                        });
+                    }
+                }
+
+                if (agents.length === 0) {
+                    sessionStatus.textContent = "Please add at least one agent";
+                    return;
+                }
+
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        audio: true,
-                    });
-
-                    websocket = new WebSocket(
-                        "ws://127.0.0.1:8000/ws/connect?session_id=session_1234"
+                    const response = await fetch(
+                        "http://127.0.0.1:8000/create_session",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                                session_id: sessionId,
+                                agents: agents,
+                            }),
+                        },
                     );
 
-                    websocket.onopen = () => {
-                        status.textContent = "Connected";
+                    const data = await response.json();
+                    sessionStatus.textContent = `✓ ${data.message}`;
+                    sessionStatus.style.color = "green";
 
-                        mediaRecorder = new MediaRecorder(stream);
+                    // Auto-fill connection session ID
+                    document.getElementById("connectSessionId").value =
+                        sessionId;
 
-                        mediaRecorder.ondataavailable = (event) => {
-                            if (
-                                event.data.size > 0 &&
-                                websocket.readyState === WebSocket.OPEN
-                            ) {
-                                websocket.send(event.data);
-                            }
-                        };
-
-                        mediaRecorder.start(5000); // 1 second chunks
-
-                        startBtn.disabled = true;
-                        stopBtn.disabled = false;
-                    };
-
-                    websocket.onerror = (error) => {
-                        status.textContent = "WebSocket error";
-                        console.error("WebSocket error:", error);
-                    };
-
-                    websocket.onclose = () => {
-                        status.textContent = "Disconnected";
-                    };
+                    // Show connection section
+                    document.getElementById("connectionSection").style.display =
+                        "block";
                 } catch (error) {
-                    status.textContent = "Microphone access denied";
-                    console.error("Error:", error);
+                    sessionStatus.textContent = `Error: ${error.message}`;
+                    sessionStatus.style.color = "red";
                 }
             });
 
-            stopBtn.addEventListener("click", () => {
-                if (mediaRecorder) {
-                    mediaRecorder.stop();
-                    mediaRecorder.stream
-                        .getTracks()
-                        .forEach((track) => track.stop());
+            // Add initial agent form
+            addAgentBtn.addEventListener("click", addAgentForm);
+            addAgentForm(); // Add first agent by default
+
+            // Connect to WebSocket
+            connectBtn.addEventListener("click", () => {
+                const sessionId = document
+                    .getElementById("connectSessionId")
+                    .value.trim();
+                if (!sessionId) {
+                    status.textContent = "Please enter a session ID";
+                    return;
                 }
-                if (websocket) {
-                    websocket.close();
+
+                websocket = new WebSocket(
+                    `ws://127.0.0.1:8000/ws/connect?session_id=${sessionId}`,
+                );
+
+                websocket.onopen = () => {
+                    status.textContent = "Connected";
+                    status.className = "status-connected";
+                    connectBtn.disabled = true;
+                    startDiscussionBtn.disabled = false;
+                    document.getElementById("discussionSection").style.display =
+                        "block";
+                    initAudioContext();
+                };
+
+                websocket.onmessage = async (event) => {
+                    if (typeof event.data === "string") {
+                        // Text message - could be AudioEvent or status message
+                        try {
+                            const jsonData = JSON.parse(event.data);
+                            console.log("Received JSON data:", typeof jsonData);
+                            console.log(
+                                "Keys:",
+                                jsonData.agent_name,
+                                jsonData.voice_id,
+                            );
+                            if (
+                                jsonData.agent_name !== undefined &&
+                                jsonData.voice_id !== undefined
+                            ) {
+                                // This is an AudioEvent
+                                handleAudioEvent(jsonData);
+                            } else {
+                                console.log("Status:", event.data);
+                            }
+                        } catch (e) {
+                            // Plain text status message
+                            console.log("Message:", event.data);
+                        }
+                    } else if (event.data instanceof Blob) {
+                        // Binary audio data
+                        await handleAudioData(event.data);
+                    }
+                };
+
+                websocket.onerror = (error) => {
+                    status.textContent = "WebSocket error";
+                    status.className = "status-disconnected";
+                    console.error("WebSocket error:", error);
+                };
+
+                websocket.onclose = () => {
+                    status.textContent = "Disconnected";
+                    status.className = "status-disconnected";
+                    connectBtn.disabled = false;
+                    startDiscussionBtn.disabled = true;
+                    stopDiscussionBtn.disabled = true;
+                };
+            });
+
+            // Handle AudioEvent
+            function handleAudioEvent(audioEvent) {
+                console.log("Audio Event:", audioEvent);
+
+                // If there's accumulated audio from previous agent, play it now
+                if (currentAudioBuffers.length > 0) {
+                    playAccumulatedAudio();
                 }
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-                status.textContent = "Stopped";
+
+                // Display agent message
+                const messageDiv = document.createElement("div");
+                messageDiv.className = "agent-message";
+                messageDiv.innerHTML = `
+                    <div class="agent-name">${audioEvent.agent_name}</div>
+                    <div class="agent-text">${
+                        audioEvent.text || "Speaking..."
+                    }</div>
+                `;
+                conversationDisplay.appendChild(messageDiv);
+                conversationDisplay.scrollTop =
+                    conversationDisplay.scrollHeight;
+
+                // Reset audio buffer for new agent
+                currentAudioBuffers = [];
+            }
+
+            // Handle audio data
+            async function handleAudioData(blob) {
+                const arrayBuffer = await blob.arrayBuffer();
+                currentAudioBuffers.push(arrayBuffer);
+            }
+
+            // Play accumulated audio
+            async function playAccumulatedAudio() {
+                if (currentAudioBuffers.length === 0) return;
+
+                try {
+                    // Concatenate all audio buffers
+                    const totalLength = currentAudioBuffers.reduce(
+                        (acc, buf) => acc + buf.byteLength,
+                        0,
+                    );
+                    const concatenated = new Uint8Array(totalLength);
+                    let offset = 0;
+
+                    for (const buffer of currentAudioBuffers) {
+                        concatenated.set(new Uint8Array(buffer), offset);
+                        offset += buffer.byteLength;
+                    }
+
+                    // Decode and play
+                    const audioBuffer = await audioContext.decodeAudioData(
+                        concatenated.buffer,
+                    );
+                    const source = audioContext.createBufferSource();
+                    source.buffer = audioBuffer;
+                    source.connect(audioContext.destination);
+                    source.start(0);
+
+                    // Wait for audio to finish
+                    await new Promise((resolve) => {
+                        source.onended = resolve;
+                    });
+                } catch (error) {
+                    console.error("Error playing audio:", error);
+                }
+            }
+
+            // Start discussion
+            startDiscussionBtn.addEventListener("click", () => {
+                if (websocket && websocket.readyState === WebSocket.OPEN) {
+                    const event = {
+                        type: "START",
+                        data: null,
+                    };
+                    websocket.send(JSON.stringify(event));
+                    startDiscussionBtn.disabled = true;
+                    stopDiscussionBtn.disabled = false;
+                    conversationDisplay.innerHTML = ""; // Clear previous conversation
+                }
+            });
+
+            // Stop discussion
+            stopDiscussionBtn.addEventListener("click", () => {
+                if (websocket && websocket.readyState === WebSocket.OPEN) {
+                    const event = {
+                        type: "STOP",
+                        data: null,
+                    };
+                    websocket.send(JSON.stringify(event));
+                    startDiscussionBtn.disabled = false;
+                    stopDiscussionBtn.disabled = true;
+
+                    // Play any remaining audio
+                    if (currentAudioBuffers.length > 0) {
+                        playAccumulatedAudio();
+                    }
+                }
             });
         </script>
     </body>

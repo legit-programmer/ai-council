@@ -55,7 +55,7 @@ async def run_discussion_loop(session_id:str, websocket: WebSocket, max_iteratio
         print(
             f"{agent.name} provided take: {take}")
         event = AudioEvent(agent_name=agent.name, voice_id=agent.voice_id, text=take).model_dump_json()
-        await websocket.send_json(event)
+        await websocket.send_text(event)
         async for chunk in asynthesize_and_return_speech(text=take, voice_id=agent.voice_id):
             await websocket.send_bytes(chunk)
             

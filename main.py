@@ -3,12 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from services.models import CreateSession
 from services.connection_manager import ConnectionManager
 from fastapi.websockets import WebSocket
-from services.redis import RedisStore
+from services.redis import get_redis_store
 
 
 app = FastAPI()
 manager = ConnectionManager()
-store = None
+store = get_redis_store()
 
 app.add_middleware(
     CORSMiddleware,

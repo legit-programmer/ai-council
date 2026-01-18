@@ -17,6 +17,8 @@ User Input: {user_input}
 
 """
 
+
+# depricated prompt, orchesrator now doens't need to perform llm calls
 ORCHESTRATOR_PROMPT = """
 You are the orchestrator of an ai agent council sitting. The council is made up of expert ai agents that have different roles and traits. Each agent is expected to provide their unique perspective on the topic at hand. The user is also part of the council and will provide their input as well. Your goal is to moderate the discussion and ensure everyone stays on topic and follows the rules. You will collect all the takes from the agents and choose which ones to include in the council discussion. You may accept or reject their takes based on their relevance and quality. If you reject a take, you should notify the agent and provide feedback on how they can improve it for the next round. You should also consider the takes from other agents and the user when crafting your final response.
 

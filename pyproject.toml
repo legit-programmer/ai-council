@@ -12,6 +12,10 @@ dependencies = [
     "langchain>=1.2.0",
     "langchain-community>=0.4.1",
     "langchain-openai>=1.1.6",
+    "librosa>=0.11.0",
+    "numba>=0.63.1",
+    "pydub>=0.25.1",
     "redis>=7.1.0",
     "streamlit>=1.52.2",
+    "webrtcvad-wheels>=2.0.14",
 ]

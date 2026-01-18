@@ -1,15 +1,17 @@
 from fastapi.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from starlette.types import Message
 from services.models import Event, EventType
+from services.whisper import process_audio_chunk
 from services.loop import run_discussion_loop
+from services.redis import get_redis_store
 from asyncio.tasks import Task
+import asyncio
 import json
 from json import JSONDecodeError
-from services.redis import get_redis_store
 
 
 store = get_redis_store()
-import asyncio
+
 class ConnectionManager:
     def __init__(self):
         self.active_connection: dict[str, WebSocket] = {}
@@ -33,7 +35,8 @@ class ConnectionManager:
             if not event:
                 return 
             elif isinstance(event, bytes):
-                return await self.process_audio_chunks()
+                await process_audio_chunk(event)
+                return 
             
 
             session_active = session_id in self.active_sessions
@@ -77,9 +80,7 @@ class ConnectionManager:
                 except JSONDecodeError:
                     await websocket.send_text("Invalid event format")
             elif 'bytes' in message:
-                print('here')
+                print('bytes recieved')
                 return message['bytes']
 
 
-    async def process_audio_chunks(self):
-        print('test process')

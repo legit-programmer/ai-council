@@ -31,7 +31,7 @@ async def run_discussion_loop(session_id:str, websocket: WebSocket, max_iteratio
         session_data = store.get_session(session_id)
         
         if session_data.stop=='true':
-            print("exiting gracefully") # can be checked and treated on the websocket layer - update: done✅
+            print("exiting gracefully") 
             break
         
         agents_state: list[AgentConfig] = session_data.agents_state
@@ -54,7 +54,7 @@ async def run_discussion_loop(session_id:str, websocket: WebSocket, max_iteratio
         agent = orchestrator.agents[agent_index]
         print(
             f"{agent.name} provided take: {take}")
-        event = AudioEvent(agent_name=agent.name, voice_id=agent.voice_id).model_dump_json()
+        event = AudioEvent(agent_name=agent.name, voice_id=agent.voice_id, text=take).model_dump_json()
         await websocket.send_json(event)
         async for chunk in asynthesize_and_return_speech(text=take, voice_id=agent.voice_id):
             await websocket.send_bytes(chunk)

@@ -56,3 +56,4 @@ class Event(BaseModel):
 class AudioEvent(BaseModel):
     agent_name: str
     voice_id: str
+    text: str = ""

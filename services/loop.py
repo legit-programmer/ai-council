@@ -4,23 +4,25 @@ from services.models import *
 from services.agents import construct_orchestrator_from_state
 from fastapi.websockets import WebSocket
 from services.elvnlabs import asynthesize_and_return_speech
+from services.tts import get_tts_service
 
 store = get_redis_store()
-id = "session_123"
-store.create_session(
-    session_id=id, agents=[
-        AgentConfig(name="Agent1", role="Tech Expert", traits=["Innovative", "Analytical"], voice_id="6WjhCXzqp2hnSqFtrG8P"),
-        AgentConfig(name="Agent2", role="Business Strategist", traits=["Pragmatic", "Visionary"], voice_id="rAsfH6d68tmh0XRGXp4D"),
-        AgentConfig(name="Agent3", role="Marketing Guru", traits=["Creative", "Persuasive"], voice_id="xNtG3W2oqJs0cJZuTyBc"),
-    ])
+tts = get_tts_service()
+# id = "session_123"
+# store.create_session(
+#     session_id=id, agents=[
+#         AgentConfig(name="Agent1", role="Tech Expert", traits=["Innovative", "Analytical"], voice_id="alba"),
+#         AgentConfig(name="Agent2", role="Business Strategist", traits=["Pragmatic", "Visionary"], voice_id="alba"),
+#         AgentConfig(name="Agent3", role="Marketing Guru", traits=["Creative", "Persuasive"], voice_id="alba"),
+#     ])
 
-id = "session_1234"
-store.create_session(
-    session_id=id, agents=[
-        AgentConfig(name="Agent1", role="Tech Expert", traits=["Innovative", "Analytical"], voice_id="6WjhCXzqp2hnSqFtrG8P"),
-        AgentConfig(name="Agent2", role="Business Strategist", traits=["Pragmatic", "Visionary"], voice_id="rAsfH6d68tmh0XRGXp4D"),
-        AgentConfig(name="Agent3", role="Marketing Guru", traits=["Creative", "Persuasive"], voice_id="xNtG3W2oqJs0cJZuTyBc"),
-    ])
+# store.create_session(
+#     session_id="session_1234", agents=[
+#         AgentConfig(name="Agent1", role="Tech Expert", traits=["Innovative", "Analytical"], voice_id="alba"),
+#         AgentConfig(name="Agent2", role="Business Strategist", traits=["Pragmatic", "Visionary"], voice_id="alba"),
+#         AgentConfig(name="Agent3", role="Marketing Guru", traits=["Creative", "Persuasive"], voice_id="alba"),
+#     ])
+
 
 
 
@@ -56,9 +58,8 @@ async def run_discussion_loop(session_id:str, websocket: WebSocket, max_iteratio
             f"{agent.name} provided take: {take}")
         event = AudioEvent(agent_name=agent.name, voice_id=agent.voice_id, text=take).model_dump_json()
         await websocket.send_text(event)
-        async for chunk in asynthesize_and_return_speech(text=take, voice_id=agent.voice_id):
-            await websocket.send_bytes(chunk)
-            
+        async for chunk in tts.asynthesize_speech(text=take, voice_id=agent.voice_id):
+            await websocket.send_bytes(chunk)           
             
 
         # check and treat user queue

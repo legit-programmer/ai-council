@@ -147,8 +147,8 @@
             let audioContext = null;
             let audioQueue = [];
             let isPlaying = false;
-            let currentAudioBuffers = [];
             let agentCount = 0;
+            const SAMPLE_RATE = 24000; // Match TTS model sample rate
 
             const sessionStatus = document.getElementById("sessionStatus");
             const status = document.getElementById("status");
@@ -168,7 +168,9 @@
             function initAudioContext() {
                 if (!audioContext) {
                     audioContext = new (window.AudioContext ||
-                        window.webkitAudioContext)();
+                        window.webkitAudioContext)({
+                        sampleRate: SAMPLE_RATE,
+                    });
                 }
             }
 
@@ -360,10 +362,9 @@
             function handleAudioEvent(audioEvent) {
                 console.log("Audio Event:", audioEvent);
 
-                // If there's accumulated audio from previous agent, play it now
-                if (currentAudioBuffers.length > 0) {
-                    playAccumulatedAudio();
-                }
+                // Clear queue and stop current playback for new agent
+                // audioQueue = [];
+                // isPlaying = false;
 
                 // Display agent message
                 const messageDiv = document.createElement("div");
@@ -377,51 +378,63 @@
                 conversationDisplay.appendChild(messageDiv);
                 conversationDisplay.scrollTop =
                     conversationDisplay.scrollHeight;
-
-                // Reset audio buffer for new agent
-                currentAudioBuffers = [];
             }
 
-            // Handle audio data
+            // Handle audio data - decode int16 PCM
             async function handleAudioData(blob) {
-                const arrayBuffer = await blob.arrayBuffer();
-                currentAudioBuffers.push(arrayBuffer);
-            }
-
-            // Play accumulated audio
-            async function playAccumulatedAudio() {
-                if (currentAudioBuffers.length === 0) return;
-
                 try {
-                    // Concatenate all audio buffers
-                    const totalLength = currentAudioBuffers.reduce(
-                        (acc, buf) => acc + buf.byteLength,
-                        0,
-                    );
-                    const concatenated = new Uint8Array(totalLength);
-                    let offset = 0;
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const int16Array = new Int16Array(arrayBuffer);
 
-                    for (const buffer of currentAudioBuffers) {
-                        concatenated.set(new Uint8Array(buffer), offset);
-                        offset += buffer.byteLength;
+                    // Convert int16 PCM to float32 for Web Audio API
+                    const float32Array = new Float32Array(int16Array.length);
+                    for (let i = 0; i < int16Array.length; i++) {
+                        float32Array[i] = int16Array[i] / 32768.0;
                     }
 
-                    // Decode and play
-                    const audioBuffer = await audioContext.decodeAudioData(
-                        concatenated.buffer,
-                    );
-                    const source = audioContext.createBufferSource();
-                    source.buffer = audioBuffer;
-                    source.connect(audioContext.destination);
-                    source.start(0);
+                    // Queue the audio chunk
+                    audioQueue.push(float32Array);
 
-                    // Wait for audio to finish
-                    await new Promise((resolve) => {
-                        source.onended = resolve;
-                    });
+                    // Start playing if not already playing
+                    if (!isPlaying) {
+                        playAudioQueue();
+                    }
                 } catch (error) {
-                    console.error("Error playing audio:", error);
+                    console.error("Error processing audio data:", error);
                 }
+            }
+
+            // Play audio from queue in real-time
+            function playAudioQueue() {
+                if (audioQueue.length === 0) {
+                    isPlaying = false;
+                    return;
+                }
+
+                isPlaying = true;
+                const audioData = audioQueue.shift();
+
+                // Create audio buffer
+                const audioBuffer = audioContext.createBuffer(
+                    1, // mono
+                    audioData.length,
+                    SAMPLE_RATE,
+                );
+
+                // Copy data to buffer
+                audioBuffer.getChannelData(0).set(audioData);
+
+                // Create source and play
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+
+                // When this chunk finishes, play next
+                source.onended = () => {
+                    playAudioQueue();
+                };
+
+                source.start();
             }
 
             // Start discussion
@@ -449,10 +462,9 @@
                     startDiscussionBtn.disabled = false;
                     stopDiscussionBtn.disabled = true;
 
-                    // Play any remaining audio
-                    if (currentAudioBuffers.length > 0) {
-                        playAccumulatedAudio();
-                    }
+                    // Clear audio queue on stop
+                    audioQueue = [];
+                    isPlaying = false;
                 }
             });
         </script>

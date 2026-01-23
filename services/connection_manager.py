@@ -64,6 +64,15 @@ class ConnectionManager:
                     return await websocket.send_text('added to queue')
                 
                 return await websocket.send_text("invalid user input")
+
+            elif event.type==EventType.PLAYING_AUDIO:
+                store.set_is_playing(session_id, True)
+                await websocket.send_text("is_playing set to True")
+            
+            elif event.type==EventType.DONE_PLAYING_AUDIO:
+                store.set_is_playing(session_id, False)
+                await websocket.send_text("is_playing set to False")
+                
         except Exception as e:
             print(f'Error: {e}')
             await websocket.send_text("Not a valid event.")

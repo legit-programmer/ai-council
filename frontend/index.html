@@ -363,8 +363,8 @@
                 console.log("Audio Event:", audioEvent);
 
                 // Clear queue and stop current playback for new agent
-                // audioQueue = [];
-                // isPlaying = false;
+                audioQueue = [];
+                isPlaying = false;
 
                 // Display agent message
                 const messageDiv = document.createElement("div");
@@ -378,6 +378,13 @@
                 conversationDisplay.appendChild(messageDiv);
                 conversationDisplay.scrollTop =
                     conversationDisplay.scrollHeight;
+
+                // Send PLAYING_AUDIO event
+                if (websocket && websocket.readyState === WebSocket.OPEN) {
+                    websocket.send(JSON.stringify({
+                        type: "PLAYING_AUDIO"
+                    }));
+                }
             }
 
             // Handle audio data - decode int16 PCM
@@ -408,6 +415,13 @@
             function playAudioQueue() {
                 if (audioQueue.length === 0) {
                     isPlaying = false;
+                    
+                    // Send DONE_PLAYING_AUDIO event when queue is empty
+                    if (websocket && websocket.readyState === WebSocket.OPEN) {
+                        websocket.send(JSON.stringify({
+                            type: "DONE_PLAYING_AUDIO"
+                        }));
+                    }
                     return;
                 }
 

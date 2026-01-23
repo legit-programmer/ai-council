@@ -47,11 +47,15 @@ class EventType(str, Enum):
     START = 'START'
     STOP = 'STOP'
     TEXT_INPUT = 'TEXT_INPUT'
+    PLAYING_AUDIO = 'PLAYING_AUDIO'
+    DONE_PLAYING_AUDIO = 'DONE_PLAYING_AUDIO'
 
 
 class Event(BaseModel):
-    type: Literal["START", "STOP", "TEXT_INPUT"]
+    type: Literal["START", "STOP", "TEXT_INPUT",
+                  "PLAYING_AUDIO", "DONE_PLAYING_AUDIO"]
     data: Optional[str] = None
+
 
 class AudioEvent(BaseModel):
     agent_name: str

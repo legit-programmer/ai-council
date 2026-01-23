@@ -87,6 +87,18 @@ class RedisStore:
         self.client.hset(key, 'pause', 'true')
         print(f"Session paused for session {session_id} in Redis.")
 
+    def set_is_playing(self, session_id: str, is_playing: bool):
+        key = f'session:{session_id}'
+        self.client.hset(key, 'is_playing', str(is_playing).lower())
+        print(f"Set is_playing={is_playing} for session {session_id} in Redis.")
+    
+    def get_is_playing(self, session_id: str) -> bool:
+        key = f'session:{session_id}'
+        is_playing = self.client.hget(key, 'is_playing')
+        if is_playing is None:
+            return False
+        return is_playing.decode('utf-8').lower() == 'true' 
+
     def update_session_from_orchestrator(self, session_id: str, orchestrator: Orchestrator):
         self.update_session(
             session_id=session_id,

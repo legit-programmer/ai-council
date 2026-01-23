@@ -1,4 +1,5 @@
 
+import asyncio
 from services.redis import get_redis_store
 from services.models import *
 from services.agents import construct_orchestrator_from_state
@@ -8,22 +9,6 @@ from services.tts import get_tts_service
 
 store = get_redis_store()
 tts = get_tts_service()
-# id = "session_123"
-# store.create_session(
-#     session_id=id, agents=[
-#         AgentConfig(name="Agent1", role="Tech Expert", traits=["Innovative", "Analytical"], voice_id="alba"),
-#         AgentConfig(name="Agent2", role="Business Strategist", traits=["Pragmatic", "Visionary"], voice_id="alba"),
-#         AgentConfig(name="Agent3", role="Marketing Guru", traits=["Creative", "Persuasive"], voice_id="alba"),
-#     ])
-
-# store.create_session(
-#     session_id="session_1234", agents=[
-#         AgentConfig(name="Agent1", role="Tech Expert", traits=["Innovative", "Analytical"], voice_id="alba"),
-#         AgentConfig(name="Agent2", role="Business Strategist", traits=["Pragmatic", "Visionary"], voice_id="alba"),
-#         AgentConfig(name="Agent3", role="Marketing Guru", traits=["Creative", "Persuasive"], voice_id="alba"),
-#     ])
-
-
 
 
 async def run_discussion_loop(session_id:str, websocket: WebSocket, max_iterations: int = 100):
@@ -31,6 +16,11 @@ async def run_discussion_loop(session_id:str, websocket: WebSocket, max_iteratio
         print(f"\n--- Iteration {iteration + 1} ---")
         #get session data
         session_data = store.get_session(session_id)
+        is_playing = store.get_is_playing(session_id)
+        print(f"is_playing: {is_playing}")
+        if is_playing:
+            await asyncio.sleep(1)
+            continue
         
         if session_data.stop=='true':
             print("exiting gracefully") 

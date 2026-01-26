@@ -12,7 +12,8 @@ tts = get_tts_service()
 
 
 async def run_discussion_loop(session_id:str, websocket: WebSocket, max_iterations: int = 100):
-    for iteration in range(max_iterations):
+    iteration = 0
+    while iteration < max_iterations:
         print(f"\n--- Iteration {iteration + 1} ---")
         #get session data
         session_data = store.get_session(session_id)
@@ -21,11 +22,11 @@ async def run_discussion_loop(session_id:str, websocket: WebSocket, max_iteratio
         if is_playing:
             await asyncio.sleep(1)
             continue
-        
         if session_data.stop=='true':
             print("exiting gracefully") 
             break
         
+        iteration += 1
         agents_state: list[AgentConfig] = session_data.agents_state
         orchestrator_state: OrchestratorState = session_data.orchestrator_state
 

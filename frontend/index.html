@@ -136,6 +136,9 @@
             <button id="startDiscussionBtn" disabled>Start Discussion</button>
             <button id="stopDiscussionBtn" disabled>Stop Discussion</button>
 
+            <input type="text" id="userInput" placeholder="Type your message here..." style="display:none;" />
+            <button id="sendBtn" style="display:none;">Send</button>
+
             <div style="margin-top: 20px">
                 <h3>Conversation</h3>
                 <div id="conversationDisplay"></div>
@@ -163,6 +166,8 @@
                 document.getElementById("startDiscussionBtn");
             const stopDiscussionBtn =
                 document.getElementById("stopDiscussionBtn");
+            const sendBtn = document.getElementById("sendBtn");
+            const userInput = document.getElementById("userInput");
 
             // Initialize audio context
             function initAudioContext() {
@@ -279,6 +284,8 @@
                     // Show connection section
                     document.getElementById("connectionSection").style.display =
                         "block";
+                    userInput.style.display = "inline-block";
+                    sendBtn.style.display = "inline-block";
                 } catch (error) {
                     sessionStatus.textContent = `Error: ${error.message}`;
                     sessionStatus.style.color = "red";
@@ -288,7 +295,20 @@
             // Add initial agent form
             addAgentBtn.addEventListener("click", addAgentForm);
             addAgentForm(); // Add first agent by default
-
+            
+            const initUserInput = (websocket) => {
+                sendBtn.addEventListener("click", () => {
+                    const message = userInput.value.trim();
+                    if (message && websocket && websocket.readyState === WebSocket.OPEN) {
+                        const event = {
+                            type: "TEXT_INPUT",
+                            data: message,
+                        };
+                        websocket.send(JSON.stringify(event));
+                        userInput.value = ""; // Clear input
+                    }
+                });
+            };
             // Connect to WebSocket
             connectBtn.addEventListener("click", () => {
                 const sessionId = document
@@ -311,6 +331,7 @@
                     document.getElementById("discussionSection").style.display =
                         "block";
                     initAudioContext();
+                    initUserInput(websocket);
                 };
 
                 websocket.onmessage = async (event) => {

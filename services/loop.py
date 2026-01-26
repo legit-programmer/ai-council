@@ -54,14 +54,14 @@ async def run_discussion_loop(session_id:str, websocket: WebSocket, max_iteratio
 
         # check and treat user queue
         # future improvement: implement pubsub and restart loop on new message event
-        user_messages = store.get_user_messages(session_id=id)
+        user_messages = store.get_user_messages(session_id=session_id)
         print(f"User messages in queue: {user_messages}")
         if len(user_messages) > 0:
             messages = ','.join(user_messages)
             orchestrator.update_conversation_stacks(
                 previous_take=messages, previous_take_author=orchestrator.user_alias
             )
-            store.clear_user_messages(session_id=id) # clear user messages after adding to the stacks
+            store.clear_user_messages(session_id=session_id) # clear user messages after adding to the stacks
 
 
         # add more robust approach for updading state for eg only updating delta changes

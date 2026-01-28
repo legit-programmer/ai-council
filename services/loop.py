@@ -33,10 +33,16 @@ async def run_discussion_loop(session_id:str, websocket: WebSocket, max_iteratio
         # reconstruct orchestrator
         orchestrator = construct_orchestrator_from_state(agents_state, orchestrator_state)
 
-        # provide initial user input
-        if iteration == 0:
-            user_input = "count till 10 one by one"
-            orchestrator.update_conversation_stacks(previous_take=user_input, previous_take_author=orchestrator.user_alias)
+        # check and treat user queue
+        # future improvement: implement pubsub and restart loop on new message event
+        user_messages = store.get_user_messages(session_id=session_id)
+        print(f"User messages in queue: {user_messages}")
+        if len(user_messages) > 0:
+            messages = ','.join(user_messages)
+            orchestrator.update_conversation_stacks(
+                previous_take=messages, previous_take_author=orchestrator.user_alias
+            )
+            store.clear_user_messages(session_id=session_id) # clear user messages after adding to the stacks
 
         agent_index, take = await orchestrator.decide_and_get_take()
 
@@ -53,16 +59,6 @@ async def run_discussion_loop(session_id:str, websocket: WebSocket, max_iteratio
             await websocket.send_bytes(chunk)           
             
 
-        # check and treat user queue
-        # future improvement: implement pubsub and restart loop on new message event
-        user_messages = store.get_user_messages(session_id=session_id)
-        print(f"User messages in queue: {user_messages}")
-        if len(user_messages) > 0:
-            messages = ','.join(user_messages)
-            orchestrator.update_conversation_stacks(
-                previous_take=messages, previous_take_author=orchestrator.user_alias
-            )
-            store.clear_user_messages(session_id=session_id) # clear user messages after adding to the stacks
 
 
         # add more robust approach for updading state for eg only updating delta changes

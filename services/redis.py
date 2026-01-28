@@ -8,7 +8,7 @@ class RedisStore:
     def __init__(self, host='localhost', port=6379, db=0):
         self.client = redis.StrictRedis(host=host, port=port, db=db)
 
-    def create_session(self, session_id: str, agents: list[AgentConfig]):
+    def create_session(self, session_id: str, agents: list[AgentConfig], initial_user_input: str = None):
         key = f'session:{session_id}'
         for agent in agents:
             if not isinstance(agent, AgentConfig):
@@ -16,7 +16,7 @@ class RedisStore:
             agent.messages.append({"role": "system", "content": SUB_AGENT_PROMPT.format(
                 role=agent.role,
                 traits=", ".join(agent.traits),
-                user_input=""
+                user_input=initial_user_input or ""
             )})
         
         agents_state= [agent.model_dump() for agent in agents]

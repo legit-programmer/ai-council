@@ -104,6 +104,12 @@
                     id="sessionId"
                     placeholder="e.g., session_123"
                 />
+                <label for="initialUserInput">Initial User Input:</label>
+                <input
+                    type="text"
+                    id="initialUserInput"
+                    placeholder="e.g., Ive been having problems with the team collaboration. I need advice."
+                />
             </div>
 
             <div id="agentsContainer">
@@ -136,8 +142,13 @@
             <button id="startDiscussionBtn" disabled>Start Discussion</button>
             <button id="stopDiscussionBtn" disabled>Stop Discussion</button>
 
-            <input type="text" id="userInput" placeholder="Type your message here..." style="display:none;" />
-            <button id="sendBtn" style="display:none;">Send</button>
+            <input
+                type="text"
+                id="userInput"
+                placeholder="Type your message here..."
+                style="display: none"
+            />
+            <button id="sendBtn" style="display: none">Send</button>
 
             <div style="margin-top: 20px">
                 <h3>Conversation</h3>
@@ -218,6 +229,9 @@
                 const sessionId = document
                     .getElementById("sessionId")
                     .value.trim();
+                const initialUserInput = document
+                    .getElementById("initialUserInput")
+                    .value.trim();
                 if (!sessionId) {
                     sessionStatus.textContent = "Please enter a session ID";
                     return;
@@ -269,6 +283,7 @@
                             body: JSON.stringify({
                                 session_id: sessionId,
                                 agents: agents,
+                                initial_user_input: initialUserInput,
                             }),
                         },
                     );
@@ -295,11 +310,15 @@
             // Add initial agent form
             addAgentBtn.addEventListener("click", addAgentForm);
             addAgentForm(); // Add first agent by default
-            
+
             const initUserInput = (websocket) => {
                 sendBtn.addEventListener("click", () => {
                     const message = userInput.value.trim();
-                    if (message && websocket && websocket.readyState === WebSocket.OPEN) {
+                    if (
+                        message &&
+                        websocket &&
+                        websocket.readyState === WebSocket.OPEN
+                    ) {
                         const event = {
                             type: "TEXT_INPUT",
                             data: message,
@@ -402,9 +421,11 @@
 
                 // Send PLAYING_AUDIO event
                 if (websocket && websocket.readyState === WebSocket.OPEN) {
-                    websocket.send(JSON.stringify({
-                        type: "PLAYING_AUDIO"
-                    }));
+                    websocket.send(
+                        JSON.stringify({
+                            type: "PLAYING_AUDIO",
+                        }),
+                    );
                 }
             }
 
@@ -436,12 +457,14 @@
             function playAudioQueue() {
                 if (audioQueue.length === 0) {
                     isPlaying = false;
-                    
+
                     // Send DONE_PLAYING_AUDIO event when queue is empty
                     if (websocket && websocket.readyState === WebSocket.OPEN) {
-                        websocket.send(JSON.stringify({
-                            type: "DONE_PLAYING_AUDIO"
-                        }));
+                        websocket.send(
+                            JSON.stringify({
+                                type: "DONE_PLAYING_AUDIO",
+                            }),
+                        );
                     }
                     return;
                 }

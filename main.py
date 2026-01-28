@@ -24,7 +24,7 @@ async def read_root():
 
 @app.post("/create_session")
 async def create_session(session: CreateSession):
-    store.create_session(session_id=session.session_id, agents=session.agents)
+    store.create_session(session_id=session.session_id, agents=session.agents, initial_user_input=session.initial_user_input)
     return {"message": "Session created successfully."}
     
 

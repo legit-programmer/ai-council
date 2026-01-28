@@ -14,6 +14,7 @@ class AgentConfig(BaseModel):
 class CreateSession(BaseModel):
     session_id: str
     agents: list[AgentConfig]
+    initial_user_input: Optional[str] = None
 
     @model_validator(mode="before")
     def check_roles_and_traits(cls, values):

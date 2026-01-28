@@ -1,8 +1,9 @@
 import redis
+import json
 from services.models import AgentConfig, OrchestratorState, UpdateSession, SessionData
-import ast
 from services.prompts import SUB_AGENT_PROMPT
-from services.agents import Agent, Orchestrator
+from services.agents import Orchestrator
+
 
 class RedisStore:
     def __init__(self, host='localhost', port=6379, db=0):
@@ -18,47 +19,60 @@ class RedisStore:
                 traits=", ".join(agent.traits),
                 user_input=initial_user_input or ""
             )})
-        
-        agents_state= [agent.model_dump() for agent in agents]
+
+        agents_state = [agent.model_dump() for agent in agents]
 
         orchestrator_state = OrchestratorState(
             conversation_stacks={agent.name: [] for agent in agents},
         ).model_dump()
 
-        self.client.hset(key, mapping={'agents_state': str(agents_state),
-                                    'orchestrator_state': str(orchestrator_state) ,
-                                    'pause': 'false',
-                                    'stop': 'false'
-
-                                    })
+        self.client.hset(key, mapping={
+            'agents_state': json.dumps(agents_state),
+            'orchestrator_state': json.dumps(orchestrator_state),
+            'pause': 'false',
+            'stop': 'false',
+            'is_playing': 'false'
+        })
         print(f"Session {session_id} created in Redis.")
-    
+
     def get_session(self, session_id: str):
         key = f'session:{session_id}'
-        agents_state = self.client.hget(key, 'agents_state').decode('utf-8')
-        agents_state = ast.literal_eval(agents_state)
-        agents_state = [AgentConfig.model_validate(agent) for agent in agents_state]
-        orchestrator_state = self.client.hget(key, 'orchestrator_state').decode('utf-8')
-        orchestrator_state = ast.literal_eval(orchestrator_state)
-        orchestrator_state = OrchestratorState.model_validate(orchestrator_state)
-        pause = ast.literal_eval(str(self.client.hget(key,'pause')))
-        stop = ast.literal_eval(str(self.client.hget(key,'stop')))
-        if agents_state and orchestrator_state:
-            return SessionData(
-                agents_state=agents_state,
-                orchestrator_state=orchestrator_state,
-                pause=pause,
-                stop=stop
-            )
-        else:
+        agents_state_raw = self.client.hget(key, 'agents_state')
+        orchestrator_state_raw = self.client.hget(key, 'orchestrator_state')
+
+        if not agents_state_raw or not orchestrator_state_raw:
             print(f"Session {session_id} not found in Redis.")
             return None
 
+        agents_state = json.loads(agents_state_raw.decode('utf-8'))
+        agents_state = [AgentConfig.model_validate(
+            agent) for agent in agents_state]
+
+        orchestrator_state = json.loads(orchestrator_state_raw.decode('utf-8'))
+        orchestrator_state = OrchestratorState.model_validate(
+            orchestrator_state)
+
+        pause_raw = self.client.hget(key, 'pause')
+        stop_raw = self.client.hget(key, 'stop')
+        pause = pause_raw.decode(
+            'utf-8').lower() == 'true' if pause_raw else False
+        stop = stop_raw.decode(
+            'utf-8').lower() == 'true' if stop_raw else False
+
+        return SessionData(
+            agents_state=agents_state,
+            orchestrator_state=orchestrator_state,
+            pause=pause,
+            stop=stop
+        )
+
     def update_session(self, session_id: str, update_session: UpdateSession):
         key = f'session:{session_id}'
-        agents_state= [agent.model_dump() for agent in update_session.agents]
-        self.client.hset(key, mapping={'agents_state': str(agents_state),
-                                       'orchestrator_state': str(update_session.orchestrator_state.model_dump())            })
+        agents_state = [agent.model_dump() for agent in update_session.agents]
+        self.client.hset(key, mapping={
+            'agents_state': json.dumps(agents_state),
+            'orchestrator_state': json.dumps(update_session.orchestrator_state.model_dump())
+        })
         print(f"Session {session_id} updated in Redis.")
 
     def add_user_message(self, session_id: str, user_message: str):
@@ -71,7 +85,7 @@ class RedisStore:
         user_messages = self.client.lrange(key, 0, -1)
         user_messages = [msg.decode('utf-8') for msg in user_messages]
         return user_messages
-    
+
     def clear_user_messages(self, session_id: str):
         key = f'session:{session_id}:user_messages'
         self.client.delete(key)
@@ -81,7 +95,7 @@ class RedisStore:
         key = f'session:{session_id}'
         self.client.hset(key, 'stop', 'true')
         print(f"Session stopped for session {session_id} in Redis.")
-    
+
     def pause_session(self, session_id: str):
         key = f'session:{session_id}'
         self.client.hset(key, 'pause', 'true')
@@ -90,20 +104,21 @@ class RedisStore:
     def set_is_playing(self, session_id: str, is_playing: bool):
         key = f'session:{session_id}'
         self.client.hset(key, 'is_playing', str(is_playing).lower())
-        print(f"Set is_playing={is_playing} for session {session_id} in Redis.")
-    
+        print(
+            f"Set is_playing={is_playing} for session {session_id} in Redis.")
+
     def get_is_playing(self, session_id: str) -> bool:
         key = f'session:{session_id}'
         is_playing = self.client.hget(key, 'is_playing')
         if is_playing is None:
             return False
-        return is_playing.decode('utf-8').lower() == 'true' 
+        return is_playing.decode('utf-8').lower() == 'true'
 
     def update_session_from_orchestrator(self, session_id: str, orchestrator: Orchestrator):
         self.update_session(
             session_id=session_id,
             update_session=UpdateSession(
-                agents=[AgentConfig(  
+                agents=[AgentConfig(
                     name=agent.name,
                     role=agent.role,
                     traits=agent.traits,
@@ -117,7 +132,9 @@ class RedisStore:
             )
         )
 
+
 instance = None
+
 
 def get_redis_store():
     global instance

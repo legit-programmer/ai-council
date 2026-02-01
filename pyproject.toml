@@ -14,9 +14,12 @@ dependencies = [
     "langchain-openai>=1.1.6",
     "librosa>=0.11.0",
     "numba>=0.63.1",
+    "nvidia-cublas-cu12>=12.8.4.1",
     "pocket-tts>=1.0.2",
+    "pyaudio>=0.2.14",
     "pydub>=0.25.1",
     "redis>=7.1.0",
+    "sounddevice>=0.5.5",
     "streamlit>=1.52.2",
     "webrtcvad-wheels>=2.0.14",
 ]

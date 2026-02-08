@@ -8,6 +8,7 @@
 
 
 ## Overview
+![alt text](image-1.png)
 
 AI Council allows you to create virtual discussion panels with multiple AI agents, each with unique roles, traits, and voices. The agents autonomously engage in conversations while you can join the discussion and influence the direction of the dialogue.
 
@@ -55,7 +56,7 @@ AI Council allows you to create virtual discussion panels with multiple AI agent
 
 ### Frontend
 
-Basic vibecoded html file for testing websocket connection and streaming. Future plans for a more robust UI.
+Next js monorepo ai slop which works with current state of the backend but will be improved to a more robust and secure implementation with authentication and better UI/UX. The frontend will allow users to create and manage sessions, join discussions, and interact with agents through text and audio.
 
 ## Getting Started
 

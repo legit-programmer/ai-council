@@ -1,0 +1,24 @@
+{
+  "name": "@council-client/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@council-client/db": "workspace:*",
+    "@council-client/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@council-client/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

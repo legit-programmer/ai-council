@@ -1,0 +1,32 @@
+{
+  "name": "council-client",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "check-types": "turbo check-types",
+    "dev:native": "turbo -F native dev",
+    "dev:web": "turbo -F web dev",
+    "db:push": "turbo -F @council-client/db db:push",
+    "db:studio": "turbo -F @council-client/db db:studio",
+    "db:generate": "turbo -F @council-client/db db:generate",
+    "db:migrate": "turbo -F @council-client/db db:migrate"
+  },
+  "dependencies": {
+    "@council-client/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@council-client/config": "workspace:*",
+    "@types/node": "^22.13.14",
+    "turbo": "^2.6.3",
+    "typescript": "catalog:"
+  },
+  "packageManager": "pnpm@10.29.1"
+}

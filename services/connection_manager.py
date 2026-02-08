@@ -1,7 +1,7 @@
 from fastapi.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from starlette.types import Message
 from services.models import Event, EventType
-from services.whisper import process_audio_chunk
+# from services.whisper import process_audio_chunk
 from services.loop import run_discussion_loop
 from services.redis import get_redis_store
 from asyncio.tasks import Task
@@ -35,7 +35,7 @@ class ConnectionManager:
             if not event:
                 return 
             elif isinstance(event, bytes):
-                await process_audio_chunk(event)
+                print("Audio chunk received")
                 return 
             
 

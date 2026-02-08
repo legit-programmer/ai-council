@@ -1,0 +1,27 @@
+{
+  "name": "@council-client/api",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@council-client/auth": "workspace:*",
+    "@council-client/db": "workspace:*",
+    "@council-client/env": "workspace:*",
+    "@trpc/client": "catalog:",
+    "@trpc/server": "catalog:",
+    "dotenv": "catalog:",
+    "next": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@council-client/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

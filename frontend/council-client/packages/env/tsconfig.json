@@ -1,3 +1,0 @@
-{
-  "extends": "@council-client/config/tsconfig.base.json"
-}

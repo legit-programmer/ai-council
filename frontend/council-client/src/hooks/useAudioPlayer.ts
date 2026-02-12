@@ -16,8 +16,14 @@ export function useAudioPlayer({
 
     const initAudioContext = useCallback(() => {
         if (!audioContextRef.current) {
+            const legacyWindow = window as Window & {
+                webkitAudioContext?: typeof AudioContext;
+            };
             const AudioContextClass =
-                window.AudioContext || window.webkitAudioContext;
+                window.AudioContext || legacyWindow.webkitAudioContext;
+            if (!AudioContextClass) {
+                return;
+            }
             audioContextRef.current = new AudioContextClass({ sampleRate });
         }
     }, [sampleRate]);

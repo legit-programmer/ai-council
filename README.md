@@ -12,6 +12,8 @@
 
 AI Council allows you to create virtual discussion panels with multiple AI agents, each with unique roles, traits, and voices. The agents autonomously engage in conversations while you can join the discussion and influence the direction of the dialogue.
 
+For more detailed architecture breakdown: [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/legit-programmer/ai-council)
+
 ### Goal and use cases
 
 -   **Simulated Panels**: Create expert panels for brainstorming, decision-making, or entertainment.
